@@ -23,13 +23,12 @@ const pool = new Pool({
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-/* ============================= */
-/* ===== DATABASE INIT ========= */
-/* ============================= */
+/* ================================= */
+/* ========== INIT DB ============== */
+/* ================================= */
 
 async function initDb() {
 
-  // Purchases
   await pool.query(`
     CREATE TABLE IF NOT EXISTS purchases (
       id SERIAL PRIMARY KEY,
@@ -40,7 +39,6 @@ async function initDb() {
     );
   `);
 
-  // Lessons
   await pool.query(`
     CREATE TABLE IF NOT EXISTS lessons (
       id SERIAL PRIMARY KEY,
@@ -56,64 +54,86 @@ async function initDb() {
     ON lessons(block_id, position);
   `);
 
-  /* ============================= */
-  /* ===== SEED DATA (1 раз) ==== */
-  /* ============================= */
+  /* ========= SEED FOR 7 BLOCKS ========= */
 
-  const check = await pool.query(
-    `SELECT COUNT(*)::int AS c FROM lessons WHERE block_id='block-1'`
-  );
+  const anyLessons = await pool.query(`SELECT COUNT(*)::int AS c FROM lessons`);
 
-  if ((check.rows[0]?.c || 0) === 0) {
-    await pool.query(`
-      INSERT INTO lessons (block_id, title, video_url, position)
-      VALUES
-        ('block-1', 'Урок 1: Введение', '', 1),
-        ('block-1', 'Урок 2: Тип кожи', '', 2),
-        ('block-1', 'Урок 3: Утро/Вечер', '', 3)
-    `);
+  if ((anyLessons.rows[0]?.c || 0) === 0) {
+
+    const rows = [
+      ['block-1','Урок 1: Введение и базовые принципы','',1],
+      ['block-1','Урок 2: Тип кожи и подбор средств','',2],
+      ['block-1','Урок 3: Ежедневная рутина утро/вечер','',3],
+      ['block-1','Урок 4: Ошибки и исправление','',4],
+      ['block-1','Урок 5: План на 7 дней','',5],
+
+      ['block-2','Урок 1: Активы — что это','',1],
+      ['block-2','Урок 2: Витамин C','',2],
+      ['block-2','Урок 3: Ретинол','',3],
+      ['block-2','Урок 4: Кислоты','',4],
+      ['block-2','Урок 5: Сочетания активов','',5],
+
+      ['block-3','Урок 1: Увлажнение','',1],
+      ['block-3','Урок 2: Барьер кожи','',2],
+      ['block-3','Урок 3: Сыворотки','',3],
+      ['block-3','Урок 4: Восстановление','',4],
+      ['block-3','Урок 5: Профилактика сухости','',5],
+
+      ['block-4','Урок 1: SPF — база','',1],
+      ['block-4','Урок 2: Выбор SPF','',2],
+      ['block-4','Урок 3: Нанесение SPF','',3],
+      ['block-4','Урок 4: Мифы про SPF','',4],
+      ['block-4','Урок 5: SPF на отдыхе','',5],
+
+      ['block-5','Урок 1: Очищение','',1],
+      ['block-5','Урок 2: Гели и пенки','',2],
+      ['block-5','Урок 3: Двойное очищение','',3],
+      ['block-5','Урок 4: Ошибки умывания','',4],
+      ['block-5','Урок 5: После умывания','',5],
+
+      ['block-6','Урок 1: Проблемная кожа','',1],
+      ['block-6','Урок 2: Воспаления','',2],
+      ['block-6','Урок 3: Постакне','',3],
+      ['block-6','Урок 4: Комедоны','',4],
+      ['block-6','Урок 5: План на месяц','',5],
+
+      ['block-7','Урок 1: Антивозрастной уход','',1],
+      ['block-7','Урок 2: Коллаген','',2],
+      ['block-7','Урок 3: Лифтинг-рутина','',3],
+      ['block-7','Урок 4: Самомассаж','',4],
+      ['block-7','Урок 5: Система на 30 дней','',5],
+    ];
+
+    const values = [];
+    const params = [];
+    let p = 1;
+
+    for (const r of rows) {
+      values.push(`($${p++},$${p++},$${p++},$${p++})`);
+      params.push(r[0], r[1], r[2], r[3]);
+    }
+
+    await pool.query(
+      `INSERT INTO lessons (block_id,title,video_url,position)
+       VALUES ${values.join(',')}`,
+      params
+    );
   }
 
   console.log('✅ DB initialized');
 }
 
-/* ============================= */
-/* ===== API ROUTES ============ */
-/* ============================= */
+/* ================================= */
+/* ========== API ================== */
+/* ================================= */
 
-// Покупка блока
-app.post('/api/buy', async (req, res) => {
-  const { email, blockId } = req.body;
-
-  if (!email || !blockId) {
-    return res.json({ status: 'error', message: 'Missing email or blockId' });
-  }
-
-  try {
-    await pool.query(
-      `INSERT INTO purchases(email, block_id)
-       VALUES($1,$2)
-       ON CONFLICT (email, block_id) DO NOTHING`,
-      [email, blockId]
-    );
-
-    res.json({ status: 'ok' });
-  } catch (e) {
-    console.error(e);
-    res.json({ status: 'error', message: 'DB error' });
-  }
-});
-
-// DEV payment create (пока без платежки)
-// фронт вызывает /api/payment/create
+// DEV Payment endpoint
 app.post('/api/payment/create', async (req, res) => {
   const { email, productId, blockId } = req.body;
-
-  // поддержим оба названия: productId или blockId
   const finalBlockId = blockId || productId;
 
   if (!email || !finalBlockId) {
-    return res.status(400).json({ status: 'error', message: 'Missing email or productId' });
+    return res.status(400).json({ status:'error', message:'Missing email or blockId' });
   }
 
   try {
@@ -124,51 +144,38 @@ app.post('/api/payment/create', async (req, res) => {
       [email, finalBlockId]
     );
 
-    // фронту часто нужно куда редиректить после оплаты
-    // мы вернём "redirectUrl" прямо на страницу блока
     return res.json({
       status: 'ok',
       redirectUrl: `/block.html?bid=${encodeURIComponent(finalBlockId)}`
     });
+
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ status: 'error', message: 'DB error' });
+    return res.status(500).json({ status:'error' });
   }
 });
-
 
 // Проверка доступа
 app.get('/api/access', async (req, res) => {
   const email = req.query.email;
-
-  if (!email) {
-    return res.json({ status: 'ok', allowed: [] });
-  }
+  if (!email) return res.json({ status:'ok', allowed: [] });
 
   try {
     const r = await pool.query(
       `SELECT block_id FROM purchases WHERE email=$1`,
       [email]
     );
-
-    res.json({
-      status: 'ok',
-      allowed: r.rows.map(x => x.block_id)
-    });
-
+    res.json({ status:'ok', allowed: r.rows.map(x => x.block_id) });
   } catch (e) {
     console.error(e);
-    res.json({ status: 'error', allowed: [] });
+    res.json({ status:'error', allowed: [] });
   }
 });
 
-// Получить уроки блока
+// Получить уроки
 app.get('/api/lessons', async (req, res) => {
   const blockId = req.query.blockId;
-
-  if (!blockId) {
-    return res.json({ status: 'error', lessons: [] });
-  }
+  if (!blockId) return res.json({ status:'error', lessons: [] });
 
   try {
     const r = await pool.query(
@@ -178,30 +185,24 @@ app.get('/api/lessons', async (req, res) => {
        ORDER BY position ASC`,
       [blockId]
     );
-
-    res.json({
-      status: 'ok',
-      lessons: r.rows
-    });
-
+    res.json({ status:'ok', lessons: r.rows });
   } catch (e) {
     console.error(e);
-    res.json({ status: 'error', lessons: [] });
+    res.json({ status:'error', lessons: [] });
   }
 });
 
-/* ============================= */
-/* ===== FRONT ROUTE =========== */
-/* ============================= */
+/* ================================= */
+/* ========== FRONT ROUTE ========== */
+/* ================================= */
 
-// ВСЁ что не API → index.html
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-/* ============================= */
-/* ===== START SERVER ========== */
-/* ============================= */
+/* ================================= */
+/* ========== START ================= */
+/* ================================= */
 
 initDb()
   .then(() => {
