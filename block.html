@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Блок</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar__inner">
+    <a class="brand" href="index.html#top">Назва</a>
+
+    <div class="topbar__actions">
+      <a class="btn btn--ghost" href="index.html#blocks">← Назад</a>
+      <button id="logoutBtn" class="btn btn--ghost" type="button">Вийти</button>
+    </div>
+  </div>
+</header>
+
+<section class="section block-page">
+  <div class="container">
+
+    <div class="block-head">
+      <div>
+        <div class="pill">Блок</div>
+        <h1 class="block-title" id="blockTitle">Загрузка...</h1>
+        <p class="block-sub muted" id="blockSub">Перевіряємо доступ...</p>
+      </div>
+    </div>
+
+    <div class="block-layout">
+      <!-- PLAYER -->
+      <div class="panel">
+        <div class="panel__top">
+          <h3 class="panel__title" id="lessonTitle">Выберите урок</h3>
+          <div class="panel__meta" id="lessonHint">После покупки здесь появятся уроки и видео.</div>
+        </div>
+
+        <div class="video-shell">
+          <video id="videoPlayer" controls playsinline class="video-card__video">
+            <!-- source вставляет JS -->
+          </video>
+
+          <div class="player-actions">
+            <button class="btn btn--ghost" id="prevLessonBtn" type="button">← Предыдущий</button>
+            <button class="btn btn--primary" id="nextLessonBtn" type="button">Следующий урок →</button>
+          </div>
+
+
+          <div id="videoLocked" class="video-locked" style="display:none;">
+            🔒 У вас нет доступа к этому блоку. Купите его на главной странице.
+            <div style="margin-top:12px;">
+              <a class="btn btn--primary" href="index.html#blocks">Перейти к блокам</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LESSONS -->
+      <div class="panel">
+        <div class="panel__top">
+          <h3 class="panel__title">Уроки</h3>
+          <div class="block-progress">
+            <div class="block-progress__top">
+              <div class="block-progress__label" id="blockProgressText">Прогресс: 0%</div>
+              <div class="block-progress__count" id="blockProgressCount">0/0</div>
+            </div>
+            <div class="block-progress__bar">
+              <div class="block-progress__barFill" id="blockProgressBar"></div>
+            </div>
+          </div>
+
+          <div class="panel__meta">Нажмите на урок, чтобы открыть видео</div>
+        </div>
+
+        <div id="lessonsBox" class="lesson-list"></div>
+
+        <div id="lockedBox" class="locked-box" style="display:none;">
+          🔒 Доступ закрыт. Вернитесь на главную и купите блок.
+          <div style="margin-top:12px;">
+            <a class="btn btn--primary" href="index.html#blocks">Купить блок</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<div class="modal-overlay" id="doneOverlay" aria-hidden="true">
+  <div class="modal modal--one" role="dialog" aria-modal="true">
+    <button class="modal__close" id="doneClose" type="button">✕</button>
+
+    <div class="modal__content">
+      <div class="modal__title">🎉 Блок завершён!</div>
+      <div class="modal__desc">
+        Вы посмотрели все уроки этого блока. Отличная работа 💪
+      </div>
+
+      <div class="modal__actions">
+        <a class="btn btn--primary" href="index.html#blocks">К другим блокам</a>
+        <button class="btn btn--ghost" id="doneOk" type="button">Ок</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="block.js"></script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Оплата</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container topbar__inner">
+    <div class="brand"><a href="index.html">SportCourses</a></div>
+    <nav class="nav">
+      <a class="nav__link" href="index.html#blocks">Блоки</a>
+      <a class="nav__link" href="index.html#faq">FAQ</a>
+    </nav>
+  </div>
+</header>
+
+<section class="section">
+  <div class="container">
+
+    <div class="glass-card" style="max-width:900px; margin:0 auto;">
+      <div class="pill">Оплата</div>
+      <h1 class="block-title" style="margin-top:10px;">Статус платежа</h1>
+
+      <p class="muted" id="statusText">Проверяем заказ...</p>
+
+      <div class="content" id="detailsBox" style="margin-top:12px;">
+        Загрузка...
+      </div>
+
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;">
+        <a class="btn btn--ghost" href="index.html#blocks">← На главную</a>
+        <a class="btn btn--primary" id="openBtn" href="#" style="display:none;">Открыть блок →</a>
+      </div>
+
+      <p class="muted" style="margin-top:12px; font-size:12px;">
+        Если доступ не открылся сразу — обнови страницу через пару секунд (иногда обработка занимает немного времени).
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<script>
+  function getParam(name) {
+    return new URL(window.location.href).searchParams.get(name);
+  }
+
+  const orderRef = getParam('orderRef');
+  const statusText = document.getElementById('statusText');
+  const detailsBox = document.getElementById('detailsBox');
+  const openBtn = document.getElementById('openBtn');
+
+  if (!orderRef) {
+    statusText.textContent = 'Нет номера заказа (orderRef).';
+    detailsBox.textContent = 'Вернись на главную и попробуй ещё раз.';
+  }
+
+  function formatOrder(o) {
+    return [
+      `Заказ: ${o.orderRef}`,
+      `Email: ${o.email}`,
+      `Продукт: ${o.productId}`,
+      `Сумма: ${o.amount} ${o.currency}`,
+      `Статус: ${o.paymentStatus}`
+    ].join('\\n');
+  }
+
+  async function checkOrderOnce() {
+    const res = await fetch(`/api/order?orderRef=${encodeURIComponent(orderRef)}`);
+    const data = await res.json();
+
+    if (data.status !== 'ok') {
+      statusText.textContent = 'Не удалось получить заказ.';
+      detailsBox.textContent = JSON.stringify(data, null, 2);
+      return { done: true };
+    }
+
+    const o = data.order;
+
+    // ✅ чтобы сайт сразу “узнал” пользователя после оплаты
+    if (o.email) localStorage.setItem('email', String(o.email).toLowerCase());
+
+    detailsBox.textContent = formatOrder(o);
+
+    if (o.paymentStatus === 'paid') {
+      statusText.textContent = '✅ Оплата успешна. Доступ открыт.';
+      openBtn.style.display = 'inline-flex';
+      openBtn.href = `block.html?bid=${encodeURIComponent(o.productId)}`;
+      return { done: true };
+    }
+
+    statusText.textContent = '⏳ Оплата обрабатывается. Если вы уже оплатили — подождём подтверждение...';
+    return { done: false };
+  }
+
+  // Поллинг (без “вечного ожидания”)
+  async function runChecks() {
+    if (!orderRef) return;
+
+    // пробуем несколько раз (обычно callback приходит быстро после оплаты)
+    for (let i = 0; i < 12; i++) {
+      const r = await checkOrderOnce();
+      if (r.done) return;
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    statusText.textContent = '⏳ Заказ ещё не подтверждён. Если оплатили — обновите страницу позже.';
+  }
+
+  runChecks();
+</script>
+
+</body>
+</html>

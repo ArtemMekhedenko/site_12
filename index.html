@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SkinBlocks</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar" id="top">
+  <div class="container topbar__inner">
+    <a class="brand" href="#top">SkinBlocks</a>
+
+    <nav class="nav nav--desktop">
+      <a class="nav__link" href="#welcome">Привітання</a>
+      <a class="nav__link" href="#blocks">Блоки</a>
+      <a class="nav__link" href="#faq">FAQ</a>
+      <a class="nav__link" href="#before-after">Результати</a>
+      <a class="nav__link" href="#contacts">Контаки</a>
+    </nav>
+
+    <div class="topbar__actions">
+      <button class="btn btn--ghost" id="loginBtn" type="button">Війти</button>
+      <button class="btn btn--ghost" id="logoutBtn" type="button" style="display:none;">Вийти</button>
+
+      <button class="burger" id="burgerBtn" type="button" aria-label="Открыть меню">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- mobile menu -->
+  <div class="mnav" id="mobileMenu">
+    <a class="mnav__link" href="#welcome">Привітання</a>
+    <a class="mnav__link" href="#blocks">Блоки</a>
+    <a class="mnav__link" href="#faq">FAQ</a>
+    <a class="mnav__link" href="#before-after">Результати</a>
+    <a class="mnav__link" href="#contacts">Контаки</a>
+  </div>
+</header>
+
+<div class="mnav-overlay" id="menuOverlay"></div>
+
+<main>
+  <!-- HERO -->
+  <section class="hero" id="welcome">
+    <div class="container hero__grid">
+      <div class="hero__text">
+        <div class="pill">Тренировки • Догляд • Результат</div>
+        <h1 class="hero__title">Покрокові блоки, що дають результат</h1>
+        <p class="hero__sub">
+        </p>
+
+        <div class="hero__cta">
+          <a class="btn btn--primary" href="#blocks">Вибрать блок</a>
+          <a class="btn btn--ghost" href="#faq">Як це працює</a>
+        </div>
+
+        <div class="hero__mini">
+          <div class="mini">🎥 Відео-уроки</div>
+          <div class="mini">✅ Доступ після покупки</div>
+          <div class="mini">⚡ Швидко та зрозуміло</div>
+        </div>
+      </div>
+
+      <div class="hero__media">
+        <div class="card card--video">
+          <div class="card__head">
+            <div class="card__title"></div>
+          </div>
+          <div class="card__body">
+            <video controls playsinline>
+              <source src="video/welcome.mp4" type="video/mp4">
+            </video>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLOCKS -->
+  <section class="section" id="blocks">
+    <div class="container">
+      <div class="section__head">
+        <h2 class="section__title">Блоки</h2>
+        <p class="section__desc"></p>
+      </div>
+
+      <div class="tiles-grid" id="tilesGrid"></div>
+
+
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section section--soft" id="faq">
+    <div class="container">
+      <div class="section__head">
+        <h2 class="section__title">FAQ</h2>
+        <p class="section__desc">Коротко та по справі</p>
+      </div>
+
+      <div class="faq">
+        <div class="faq__item">
+          <button class="faq__q" type="button">Как я получу доступ?</button>
+          <div class="faq__a">
+            После покупки доступ открывается на ваш email. На странице блока появятся уроки и видео.
+          </div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">Можно купить один блок?</button>
+          <div class="faq__a">
+            Да. Каждый блок покупается отдельно.
+          </div>
+        </div>
+
+        <div class="faq__item">
+          <button class="faq__q" type="button">Если не открылся доступ?</button>
+          <div class="faq__a">
+            Войдите по email покупки. Если всё равно не открылось — напишите в поддержку.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+<section class="section" id="before-after">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title">Результати</h2>
+      <p class="section__desc"></p>
+    </div>
+
+    <div class="gallery" id="resultsGallery">
+      <button class="gcard" type="button">
+        <img src="img/before1.jpg" alt="Фото 1">
+      </button>
+      <button class="gcard" type="button">
+        <img src="img/after1.jpg" alt="Фото 2">
+      </button>
+      <button class="gcard" type="button">
+        <img src="img/before2.jpg" alt="Фото 3">
+      </button>
+      <button class="gcard" type="button">
+        <img src="after2.jpg" alt="Фото 4">
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- Zoom overlay -->
+<div class="zoom-overlay" id="zoomOverlay" aria-hidden="true">
+  <div class="zoom-inner">
+    <img id="zoomImg" src="" alt="">
+  </div>
+</div>
+
+
+  <!-- CONTACTS -->
+  <section class="section section--soft" id="contacts">
+    <div class="container">
+      <div class="section__head">
+        <h2 class="section__title">Контакты</h2>
+        <p class="section__desc">Поддержка по доступу и оплате</p>
+      </div>
+
+      <div class="contact-card">
+        <div class="contact-row">
+          <div class="contact-k">Email</div>
+          <div class="contact-v">...@gmail.com</div>
+        </div>
+        <div class="contact-row">
+          <div class="contact-k">Telegram</div>
+          <div class="contact-v">@...</div>
+        </div>
+      </div>
+
+      <footer class="footer">
+        <div class="footer__inner">
+          <span class="muted">© <span id="year"></span> SkinBlocks</span>
+          <a class="muted" href="#top">Наверх ↑</a>
+        </div>
+      </footer>
+    </div>
+  </section>
+</main>
+
+<!-- ===== MODAL: BLOCK BUY/OPEN ===== -->
+<div class="modal-overlay" id="modalOverlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal__close" id="modalClose" type="button">✕</button>
+
+    <div class="modal__image">
+      <img id="modalImg" src="" alt="">
+    </div>
+
+    <div class="modal__content">
+      <div class="modal__title" id="modalTitle">Блок</div>
+      <div class="modal__desc" id="modalDesc">Описание</div>
+
+      <div class="modal__row">
+        <div class="modal__price" id="modalPrice">499 грн</div>
+        <div class="modal__badge" id="modalBadge">Закрыто</div>
+      </div>
+
+      <div class="modal__actions">
+        <button class="btn btn--primary" id="modalBuyBtn" type="button">Купить</button>
+        <a class="btn btn--ghost" id="modalOpenBtn" href="#">Открыть блок</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LOGIN MODAL ===== -->
+<div class="modal-overlay" id="loginOverlay" aria-hidden="true">
+  <div class="modal modal--one" role="dialog" aria-modal="true">
+    <button class="modal__close" id="loginClose" type="button">✕</button>
+
+    <div class="modal__content">
+      <div class="modal__title">Вход</div>
+      <div class="modal__desc">Введите email. На него привязан доступ к блокам.</div>
+
+      <input id="loginEmail" class="input" type="email" placeholder="example@gmail.com" autocomplete="email">
+
+      <div class="modal__actions">
+        <button class="btn btn--primary" id="loginSubmit" type="button">Продолжить</button>
+        <button class="btn btn--ghost" id="loginCancel" type="button">Отмена</button>
+      </div>
+
+      <div class="muted small">
+        Email используется только для доступа к купленным блокам.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('year').textContent = String(new Date().getFullYear());
+
+  // FAQ accordion
+  document.querySelectorAll('.faq__item').forEach(item => {
+    const q = item.querySelector('.faq__q');
+    q.addEventListener('click', () => item.classList.toggle('open'));
+  });
+
+  // Mobile menu
+  const burgerBtn = document.getElementById('burgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  const overlay = document.getElementById('menuOverlay');
+
+  function openMenu(){ mobileMenu.classList.add('open'); overlay.classList.add('open'); burgerBtn.classList.add('open'); }
+  function closeMenu(){ mobileMenu.classList.remove('open'); overlay.classList.remove('open'); burgerBtn.classList.remove('open'); }
+
+  burgerBtn?.addEventListener('click', () => mobileMenu.classList.contains('open') ? closeMenu() : openMenu());
+  overlay?.addEventListener('click', closeMenu);
+  mobileMenu?.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
+</script>
+
+<script>
+  // ... (у тебя тут уже есть код: year, FAQ, menu)
+
+  // ===== Gallery zoom =====
+  const zoomOverlay = document.getElementById('zoomOverlay');
+  const zoomImg = document.getElementById('zoomImg');
+
+  document.querySelectorAll('.gcard').forEach(card => {
+    card.addEventListener('click', () => {
+      const img = card.querySelector('img');
+      if (!img) return;
+
+      // если уже открыто — закрыть
+      if (zoomOverlay.classList.contains('open')) {
+        zoomOverlay.classList.remove('open');
+        zoomOverlay.setAttribute('aria-hidden', 'true');
+        zoomImg.src = '';
+        return;
+      }
+
+      zoomImg.src = img.src;
+      zoomOverlay.classList.add('open');
+      zoomOverlay.setAttribute('aria-hidden', 'false');
+    });
+  });
+
+  zoomOverlay?.addEventListener('click', () => {
+    zoomOverlay.classList.remove('open');
+    zoomOverlay.setAttribute('aria-hidden', 'true');
+    zoomImg.src = '';
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && zoomOverlay.classList.contains('open')) {
+      zoomOverlay.classList.remove('open');
+      zoomOverlay.setAttribute('aria-hidden', 'true');
+      zoomImg.src = '';
+    }
+  });
+</script>
+
+
+<script src="script.js"></script>
+</body>
+</html>
