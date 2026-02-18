@@ -6,7 +6,12 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+/* ======================================================
+   DATABASE
+====================================================== */
+
 const DATABASE_URL = process.env.DATABASE_URL;
+
 if (!DATABASE_URL) {
   console.error('❌ DATABASE_URL missing');
   process.exit(1);
@@ -56,7 +61,7 @@ async function initDb() {
 }
 
 /* ======================================================
-   AUTO VIDEO SEED (7 BLOCKS)
+   AUTO SEED (7 BLOCKS, 5 LESSONS EACH)
 ====================================================== */
 
 async function seedLessons() {
@@ -72,25 +77,41 @@ async function seedLessons() {
 
     if (exists.rows.length > 0) continue;
 
-    for (let j = 1; j <= 4; j++) {
+    for (let j = 1; j <= 5; j++) {
       await pool.query(
         `INSERT INTO lessons(block_id, title, video_url, position)
          VALUES($1,$2,$3,$4)`,
         [
           blockId,
           `Урок ${j}`,
-          `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`,
+          '', // видео пока пустое
           j
         ]
       );
     }
 
-    console.log(`🎬 Seeded videos for ${blockId}`);
+    console.log(`🎬 Seeded ${blockId}`);
   }
 }
 
 /* ======================================================
-   BUY (DEV)
+   DEV: FILL TEST VIDEOS
+====================================================== */
+
+app.get('/api/dev/fill-videos', async (req, res) => {
+  const testVideo =
+    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+
+  await pool.query(
+    `UPDATE lessons SET video_url=$1 WHERE video_url=''`,
+    [testVideo]
+  );
+
+  res.json({ ok: true });
+});
+
+/* ======================================================
+   BUY (DEV MODE)
 ====================================================== */
 
 app.post('/api/payment/create', async (req, res) => {
@@ -120,7 +141,7 @@ app.post('/api/payment/create', async (req, res) => {
 });
 
 /* ======================================================
-   ACCESS
+   ACCESS CHECK
 ====================================================== */
 
 app.get('/api/access', async (req, res) => {
@@ -176,19 +197,22 @@ app.get('/api/lessons', async (req, res) => {
 });
 
 /* ======================================================
-   SPA ROUTE
+   SPA FALLBACK
 ====================================================== */
 
-app.get('/*', (req, res) => {
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 /* ======================================================
-   START
+   START SERVER
 ====================================================== */
 
 initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
+}).catch(err => {
+  console.error('❌ DB init failed:', err);
+  process.exit(1);
 });
