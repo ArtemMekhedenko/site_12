@@ -104,6 +104,39 @@ app.post('/api/buy', async (req, res) => {
   }
 });
 
+// DEV payment create (пока без платежки)
+// фронт вызывает /api/payment/create
+app.post('/api/payment/create', async (req, res) => {
+  const { email, productId, blockId } = req.body;
+
+  // поддержим оба названия: productId или blockId
+  const finalBlockId = blockId || productId;
+
+  if (!email || !finalBlockId) {
+    return res.status(400).json({ status: 'error', message: 'Missing email or productId' });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO purchases(email, block_id)
+       VALUES($1,$2)
+       ON CONFLICT (email, block_id) DO NOTHING`,
+      [email, finalBlockId]
+    );
+
+    // фронту часто нужно куда редиректить после оплаты
+    // мы вернём "redirectUrl" прямо на страницу блока
+    return res.json({
+      status: 'ok',
+      redirectUrl: `/block.html?bid=${encodeURIComponent(finalBlockId)}`
+    });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ status: 'error', message: 'DB error' });
+  }
+});
+
+
 // Проверка доступа
 app.get('/api/access', async (req, res) => {
   const email = req.query.email;
