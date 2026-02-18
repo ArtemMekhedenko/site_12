@@ -1,4 +1,3 @@
-const API_BASE = "";
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
@@ -8,6 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const DATABASE_URL = process.env.DATABASE_URL;
+
 if (!DATABASE_URL) {
   console.error('❌ DATABASE_URL missing');
   process.exit(1);
@@ -15,13 +15,21 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : false
 });
 
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
+/* ============================= */
+/* ===== DATABASE INIT ========= */
+/* ============================= */
+
 async function initDb() {
+
+  // Purchases
   await pool.query(`
     CREATE TABLE IF NOT EXISTS purchases (
       id SERIAL PRIMARY KEY,
@@ -32,6 +40,7 @@ async function initDb() {
     );
   `);
 
+  // Lessons
   await pool.query(`
     CREATE TABLE IF NOT EXISTS lessons (
       id SERIAL PRIMARY KEY,
@@ -42,13 +51,43 @@ async function initDb() {
     );
   `);
 
-  await pool.query(`CREATE INDEX IF NOT EXISTS lessons_block_pos_idx ON lessons(block_id, position);`);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS lessons_block_pos_idx
+    ON lessons(block_id, position);
+  `);
+
+  /* ============================= */
+  /* ===== SEED DATA (1 раз) ==== */
+  /* ============================= */
+
+  const check = await pool.query(
+    `SELECT COUNT(*)::int AS c FROM lessons WHERE block_id='block-1'`
+  );
+
+  if ((check.rows[0]?.c || 0) === 0) {
+    await pool.query(`
+      INSERT INTO lessons (block_id, title, video_url, position)
+      VALUES
+        ('block-1', 'Урок 1: Введение', '', 1),
+        ('block-1', 'Урок 2: Тип кожи', '', 2),
+        ('block-1', 'Урок 3: Утро/Вечер', '', 3)
+    `);
+  }
+
   console.log('✅ DB initialized');
 }
 
+/* ============================= */
+/* ===== API ROUTES ============ */
+/* ============================= */
+
+// Покупка блока
 app.post('/api/buy', async (req, res) => {
   const { email, blockId } = req.body;
-  if (!email || !blockId) return res.json({ status:'error', message:'Missing email or blockId' });
+
+  if (!email || !blockId) {
+    return res.json({ status: 'error', message: 'Missing email or blockId' });
+  }
 
   try {
     await pool.query(
@@ -57,29 +96,46 @@ app.post('/api/buy', async (req, res) => {
        ON CONFLICT (email, block_id) DO NOTHING`,
       [email, blockId]
     );
-    res.json({ status:'ok' });
+
+    res.json({ status: 'ok' });
   } catch (e) {
     console.error(e);
-    res.json({ status:'error', message:'DB error' });
+    res.json({ status: 'error', message: 'DB error' });
   }
 });
 
+// Проверка доступа
 app.get('/api/access', async (req, res) => {
   const email = req.query.email;
-  if (!email) return res.json({ status:'ok', allowed: [] });
+
+  if (!email) {
+    return res.json({ status: 'ok', allowed: [] });
+  }
 
   try {
-    const r = await pool.query(`SELECT block_id FROM purchases WHERE email=$1`, [email]);
-    res.json({ status:'ok', allowed: r.rows.map(x => x.block_id) });
+    const r = await pool.query(
+      `SELECT block_id FROM purchases WHERE email=$1`,
+      [email]
+    );
+
+    res.json({
+      status: 'ok',
+      allowed: r.rows.map(x => x.block_id)
+    });
+
   } catch (e) {
     console.error(e);
-    res.json({ status:'error', allowed: [] });
+    res.json({ status: 'error', allowed: [] });
   }
 });
 
+// Получить уроки блока
 app.get('/api/lessons', async (req, res) => {
   const blockId = req.query.blockId;
-  if (!blockId) return res.json({ status:'error', lessons: [] });
+
+  if (!blockId) {
+    return res.json({ status: 'error', lessons: [] });
+  }
 
   try {
     const r = await pool.query(
@@ -89,28 +145,38 @@ app.get('/api/lessons', async (req, res) => {
        ORDER BY position ASC`,
       [blockId]
     );
-    res.json({ status:'ok', lessons: r.rows });
+
+    res.json({
+      status: 'ok',
+      lessons: r.rows
+    });
+
   } catch (e) {
     console.error(e);
-    res.json({ status:'error', lessons: [] });
+    res.json({ status: 'error', lessons: [] });
   }
 });
 
-app.get('/*', (req, res) => {
+/* ============================= */
+/* ===== FRONT ROUTE =========== */
+/* ============================= */
+
+// ВСЁ что не API → index.html
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-initDb().then(() => {
-  app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
-}).catch(err => {
-  console.error('❌ DB init failed:', err);
-  process.exit(1);
-});
+/* ============================= */
+/* ===== START SERVER ========== */
+/* ============================= */
 
-await pool.query(`
-  INSERT INTO lessons (block_id, title, video_url, position)
-  VALUES
-  ('block-1', 'Урок 1', 'https://your-video-url.mp4', 1),
-  ('block-1', 'Урок 2', 'https://your-video-url.mp4', 2)
-  ON CONFLICT DO NOTHING;
-`);
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('❌ DB init failed:', err);
+    process.exit(1);
+  });
