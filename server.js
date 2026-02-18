@@ -7,7 +7,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const DATABASE_URL = process.env.DATABASE_URL;
-
 if (!DATABASE_URL) {
   console.error('❌ DATABASE_URL missing');
   process.exit(1);
@@ -15,20 +14,17 @@ if (!DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production'
-    ? { rejectUnauthorized: false }
-    : false
+  ssl: { rejectUnauthorized: false }
 });
 
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-/* ================================= */
-/* ========== INIT DB ============== */
-/* ================================= */
+/* ======================================================
+   INIT DB + AUTO SEED
+====================================================== */
 
 async function initDb() {
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS purchases (
       id SERIAL PRIMARY KEY,
@@ -54,76 +50,54 @@ async function initDb() {
     ON lessons(block_id, position);
   `);
 
-  // УДАЛЯЕМ старые уроки (чтобы не дублировались)
-  await pool.query(`DELETE FROM lessons`);
+  console.log('✅ DB initialized');
 
-  const rows = [
-    ['block-1','Урок 1','',1],
-    ['block-1','Урок 2','',2],
-    ['block-1','Урок 3','',3],
-    ['block-1','Урок 4','',4],
-    ['block-1','Урок 5','',5],
-
-    ['block-2','Урок 1','',1],
-    ['block-2','Урок 2','',2],
-    ['block-2','Урок 3','',3],
-    ['block-2','Урок 4','',4],
-    ['block-2','Урок 5','',5],
-
-    ['block-3','Урок 1','',1],
-    ['block-3','Урок 2','',2],
-    ['block-3','Урок 3','',3],
-    ['block-3','Урок 4','',4],
-    ['block-3','Урок 5','',5],
-
-    ['block-4','Урок 1','',1],
-    ['block-4','Урок 2','',2],
-    ['block-4','Урок 3','',3],
-    ['block-4','Урок 4','',4],
-    ['block-4','Урок 5','',5],
-
-    ['block-5','Урок 1','',1],
-    ['block-5','Урок 2','',2],
-    ['block-5','Урок 3','',3],
-    ['block-5','Урок 4','',4],
-    ['block-5','Урок 5','',5],
-
-    ['block-6','Урок 1','',1],
-    ['block-6','Урок 2','',2],
-    ['block-6','Урок 3','',3],
-    ['block-6','Урок 4','',4],
-    ['block-6','Урок 5','',5],
-
-    ['block-7','Урок 1','',1],
-    ['block-7','Урок 2','',2],
-    ['block-7','Урок 3','',3],
-    ['block-7','Урок 4','',4],
-    ['block-7','Урок 5','',5],
-  ];
-
-  for (const r of rows) {
-    await pool.query(
-      `INSERT INTO lessons (block_id,title,video_url,position)
-       VALUES ($1,$2,$3,$4)`,
-      r
-    );
-  }
-
-  console.log('✅ DB initialized & seeded');
+  await seedLessons();
 }
 
+/* ======================================================
+   AUTO VIDEO SEED (7 BLOCKS)
+====================================================== */
 
-/* ================================= */
-/* ========== API ================== */
-/* ================================= */
+async function seedLessons() {
+  const blocks = 7;
 
-// DEV Payment endpoint
+  for (let i = 1; i <= blocks; i++) {
+    const blockId = `block-${i}`;
+
+    const exists = await pool.query(
+      `SELECT 1 FROM lessons WHERE block_id=$1 LIMIT 1`,
+      [blockId]
+    );
+
+    if (exists.rows.length > 0) continue;
+
+    for (let j = 1; j <= 4; j++) {
+      await pool.query(
+        `INSERT INTO lessons(block_id, title, video_url, position)
+         VALUES($1,$2,$3,$4)`,
+        [
+          blockId,
+          `Урок ${j}`,
+          `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`,
+          j
+        ]
+      );
+    }
+
+    console.log(`🎬 Seeded videos for ${blockId}`);
+  }
+}
+
+/* ======================================================
+   BUY (DEV)
+====================================================== */
+
 app.post('/api/payment/create', async (req, res) => {
-  const { email, productId, blockId } = req.body;
-  const finalBlockId = blockId || productId;
+  const { email, productId } = req.body;
 
-  if (!email || !finalBlockId) {
-    return res.status(400).json({ status:'error', message:'Missing email or blockId' });
+  if (!email || !productId) {
+    return res.json({ status: 'error', message: 'Missing data' });
   }
 
   try {
@@ -131,41 +105,55 @@ app.post('/api/payment/create', async (req, res) => {
       `INSERT INTO purchases(email, block_id)
        VALUES($1,$2)
        ON CONFLICT (email, block_id) DO NOTHING`,
-      [email, finalBlockId]
+      [email, productId]
     );
 
     return res.json({
       status: 'ok',
-      redirectUrl: `/block.html?bid=${encodeURIComponent(finalBlockId)}`
+      redirectUrl: `/block.html?bid=${productId}`
     });
 
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ status:'error' });
+  } catch (err) {
+    console.error(err);
+    return res.json({ status: 'error', message: 'DB error' });
   }
 });
 
-// Проверка доступа
+/* ======================================================
+   ACCESS
+====================================================== */
+
 app.get('/api/access', async (req, res) => {
   const email = req.query.email;
-  if (!email) return res.json({ status:'ok', allowed: [] });
+
+  if (!email) return res.json({ status: 'ok', allowed: [] });
 
   try {
     const r = await pool.query(
       `SELECT block_id FROM purchases WHERE email=$1`,
       [email]
     );
-    res.json({ status:'ok', allowed: r.rows.map(x => x.block_id) });
-  } catch (e) {
-    console.error(e);
-    res.json({ status:'error', allowed: [] });
+
+    return res.json({
+      status: 'ok',
+      allowed: r.rows.map(x => x.block_id)
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.json({ status: 'error', allowed: [] });
   }
 });
 
-// Получить уроки
+/* ======================================================
+   GET LESSONS
+====================================================== */
+
 app.get('/api/lessons', async (req, res) => {
   const blockId = req.query.blockId;
-  if (!blockId) return res.json({ status:'error', lessons: [] });
+
+  if (!blockId)
+    return res.json({ status: 'error', lessons: [] });
 
   try {
     const r = await pool.query(
@@ -175,32 +163,32 @@ app.get('/api/lessons', async (req, res) => {
        ORDER BY position ASC`,
       [blockId]
     );
-    res.json({ status:'ok', lessons: r.rows });
-  } catch (e) {
-    console.error(e);
-    res.json({ status:'error', lessons: [] });
+
+    return res.json({
+      status: 'ok',
+      lessons: r.rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.json({ status: 'error', lessons: [] });
   }
 });
 
-/* ================================= */
-/* ========== FRONT ROUTE ========== */
-/* ================================= */
+/* ======================================================
+   SPA ROUTE
+====================================================== */
 
-app.get('*', (req, res) => {
+app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-/* ================================= */
-/* ========== START ================= */
-/* ================================= */
+/* ======================================================
+   START
+====================================================== */
 
-initDb()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`✅ Server running on port ${PORT}`);
-    });
-  })
-  .catch(err => {
-    console.error('❌ DB init failed:', err);
-    process.exit(1);
+initDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
   });
+});
