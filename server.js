@@ -26,7 +26,7 @@ app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
 /* ======================================================
-   INIT DB + AUTO SEED
+   INIT DB
 ====================================================== */
 
 async function initDb() {
@@ -45,7 +45,7 @@ async function initDb() {
       id SERIAL PRIMARY KEY,
       block_id TEXT NOT NULL,
       title TEXT NOT NULL,
-      video_url TEXT NOT NULL,
+      video_url TEXT NOT NULL DEFAULT '',
       position INT NOT NULL DEFAULT 1
     );
   `);
@@ -61,7 +61,7 @@ async function initDb() {
 }
 
 /* ======================================================
-   AUTO SEED (7 BLOCKS, 5 LESSONS EACH)
+   AUTO SEED (7 BLOCKS × 5 LESSONS)
 ====================================================== */
 
 async function seedLessons() {
@@ -84,34 +84,18 @@ async function seedLessons() {
         [
           blockId,
           `Урок ${j}`,
-          '', // видео пока пустое
+          '',
           j
         ]
       );
     }
 
-    console.log(`🎬 Seeded ${blockId}`);
+    console.log(`🎬 Seeded lessons for ${blockId}`);
   }
 }
 
 /* ======================================================
-   DEV: FILL TEST VIDEOS
-====================================================== */
-
-app.get('/api/dev/fill-videos', async (req, res) => {
-  const testVideo =
-    'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
-
-  await pool.query(
-    `UPDATE lessons SET video_url=$1 WHERE video_url=''`,
-    [testVideo]
-  );
-
-  res.json({ ok: true });
-});
-
-/* ======================================================
-   BUY (DEV MODE)
+   BUY (DEV MODE — без оплаты)
 ====================================================== */
 
 app.post('/api/payment/create', async (req, res) => {
@@ -147,7 +131,8 @@ app.post('/api/payment/create', async (req, res) => {
 app.get('/api/access', async (req, res) => {
   const email = req.query.email;
 
-  if (!email) return res.json({ status: 'ok', allowed: [] });
+  if (!email)
+    return res.json({ status: 'ok', allowed: [] });
 
   try {
     const r = await pool.query(
@@ -197,10 +182,40 @@ app.get('/api/lessons', async (req, res) => {
 });
 
 /* ======================================================
+   DEV: SET VIDEO LINK
+====================================================== */
+
+app.post('/api/dev/set-video', async (req, res) => {
+  const { blockId, position, videoUrl } = req.body;
+
+  if (!blockId || !position || !videoUrl) {
+    return res.status(400).json({
+      ok: false,
+      message: 'blockId, position, videoUrl required'
+    });
+  }
+
+  try {
+    await pool.query(
+      `UPDATE lessons
+       SET video_url=$1
+       WHERE block_id=$2 AND position=$3`,
+      [videoUrl, blockId, Number(position)]
+    );
+
+    return res.json({ ok: true });
+
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ ok: false });
+  }
+});
+
+/* ======================================================
    SPA FALLBACK
 ====================================================== */
 
-app.get('*', (req, res) => {
+app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
@@ -208,11 +223,13 @@ app.get('*', (req, res) => {
    START SERVER
 ====================================================== */
 
-initDb().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('❌ DB init failed:', err);
+    process.exit(1);
   });
-}).catch(err => {
-  console.error('❌ DB init failed:', err);
-  process.exit(1);
-});
