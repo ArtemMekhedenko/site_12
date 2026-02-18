@@ -889,3 +889,14 @@ a{ color: inherit; }
   display:block;
   background: #000;
 }
+
+/* FIX: modal must be clickable */
+.modal-overlay { pointer-events: auto; }
+.modal { pointer-events: auto; position: relative; z-index: 999; }
+
+/* если у тебя есть затемнение отдельным блоком — оно не должно перекрывать окно */
+.zoom-overlay, .mnav-overlay { pointer-events: auto; }
+
+.modal__content { position: relative; z-index: 2; }
+.modal__image { position: relative; z-index: 1; }
+
