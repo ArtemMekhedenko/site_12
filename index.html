@@ -17,7 +17,7 @@
       <a class="nav__link" href="#blocks">Блоки</a>
       <a class="nav__link" href="#faq">FAQ</a>
       <a class="nav__link" href="#before-after">Результати</a>
-      <a class="nav__link" href="#contacts">Контаки</a>
+      <a class="nav__link" href="#contacts">Контакти</a>
     </nav>
 
     <div class="topbar__actions">
@@ -36,7 +36,7 @@
     <a class="mnav__link" href="#blocks">Блоки</a>
     <a class="mnav__link" href="#faq">FAQ</a>
     <a class="mnav__link" href="#before-after">Результати</a>
-    <a class="mnav__link" href="#contacts">Контаки</a>
+    <a class="mnav__link" href="#contacts">Контакти</a>
   </div>
 </header>
 
@@ -49,8 +49,7 @@
       <div class="hero__text">
         <div class="pill">Тренировки • Догляд • Результат</div>
         <h1 class="hero__title">Покрокові блоки, що дають результат</h1>
-        <p class="hero__sub">
-        </p>
+        <p class="hero__sub"></p>
 
         <div class="hero__cta">
           <a class="btn btn--primary" href="#blocks">Вибрать блок</a>
@@ -87,10 +86,8 @@
         <p class="section__desc"></p>
       </div>
 
+      <!-- ВАЖНО: контейнер для карточек -->
       <div class="tiles-grid" id="tilesGrid"></div>
-
-
-      </div>
     </div>
   </section>
 
@@ -127,37 +124,29 @@
     </div>
   </section>
 
-<section class="section" id="before-after">
-  <div class="container">
-    <div class="section__head">
-      <h2 class="section__title">Результати</h2>
-      <p class="section__desc"></p>
-    </div>
+  <!-- RESULTS -->
+  <section class="section" id="before-after">
+    <div class="container">
+      <div class="section__head">
+        <h2 class="section__title">Результати</h2>
+        <p class="section__desc"></p>
+      </div>
 
-    <div class="gallery" id="resultsGallery">
-      <button class="gcard" type="button">
-        <img src="img/before1.jpg" alt="Фото 1">
-      </button>
-      <button class="gcard" type="button">
-        <img src="img/after1.jpg" alt="Фото 2">
-      </button>
-      <button class="gcard" type="button">
-        <img src="img/before2.jpg" alt="Фото 3">
-      </button>
-      <button class="gcard" type="button">
-        <img src="after2.jpg" alt="Фото 4">
-      </button>
+      <div class="gallery" id="resultsGallery">
+        <button class="gcard" type="button"><img src="img/before1.jpg" alt="Фото 1"></button>
+        <button class="gcard" type="button"><img src="img/after1.jpg" alt="Фото 2"></button>
+        <button class="gcard" type="button"><img src="img/before2.jpg" alt="Фото 3"></button>
+        <button class="gcard" type="button"><img src="img/after2.jpg" alt="Фото 4"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Zoom overlay -->
+  <div class="zoom-overlay" id="zoomOverlay" aria-hidden="true">
+    <div class="zoom-inner">
+      <img id="zoomImg" src="" alt="">
     </div>
   </div>
-</section>
-
-<!-- Zoom overlay -->
-<div class="zoom-overlay" id="zoomOverlay" aria-hidden="true">
-  <div class="zoom-inner">
-    <img id="zoomImg" src="" alt="">
-  </div>
-</div>
-
 
   <!-- CONTACTS -->
   <section class="section section--soft" id="contacts">
@@ -208,7 +197,7 @@
 
       <div class="modal__actions">
         <button class="btn btn--primary" id="modalBuyBtn" type="button">Купить</button>
-        <a class="btn btn--ghost" id="modalOpenBtn" href="#">Открыть блок</a>
+        <a class="btn btn--ghost" id="modalOpenBtn" href="#" style="display:none;">Открыть блок</a>
       </div>
     </div>
   </div>
@@ -257,12 +246,8 @@
   burgerBtn?.addEventListener('click', () => mobileMenu.classList.contains('open') ? closeMenu() : openMenu());
   overlay?.addEventListener('click', closeMenu);
   mobileMenu?.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
-</script>
 
-<script>
-  // ... (у тебя тут уже есть код: year, FAQ, menu)
-
-  // ===== Gallery zoom =====
+  // Gallery zoom
   const zoomOverlay = document.getElementById('zoomOverlay');
   const zoomImg = document.getElementById('zoomImg');
 
@@ -271,7 +256,6 @@
       const img = card.querySelector('img');
       if (!img) return;
 
-      // если уже открыто — закрыть
       if (zoomOverlay.classList.contains('open')) {
         zoomOverlay.classList.remove('open');
         zoomOverlay.setAttribute('aria-hidden', 'true');
@@ -299,7 +283,6 @@
     }
   });
 </script>
-
 
 <script src="script.js"></script>
 </body>
