@@ -4,6 +4,8 @@
   "description": "",
   "main": "server.js",
   "type": "commonjs",
+
+
   "scripts": {
     "start": "node server.js"
   },
@@ -11,7 +13,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.18.2",
-    "sqlite3": "^5.1.7"
+    "pg": "^8.12.0"
   }
 }
 
