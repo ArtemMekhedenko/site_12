@@ -1,294 +1,262 @@
-/*************************************************
- * БЛОКИ (7)
- *************************************************/
-const BLOCKS = [
-  { id: 'block-1', title: 'Блок 1', subtitle: 'Базовый уход', price: 499, img: 'img/block-1.jpg',
-    desc: 'Что такое базовый уход, как подобрать средства под тип кожи и выстроить ежедневную рутину.' },
-  { id: 'block-2', title: 'Блок 2', subtitle: 'Активы и сыворотки', price: 499, img: 'img/block-2.jpg',
-    desc: 'Разбор активов (витамин C, ретинол, кислоты), как сочетать и не навредить коже.' },
-  { id: 'block-3', title: 'Блок 3', subtitle: 'Проблемная кожа', price: 499, img: 'img/block-3.jpg',
-    desc: 'Работа с воспалениями, чувствительностью и барьером кожи. План на 2–4 недели.' },
-  { id: 'block-4', title: 'Блок 4', subtitle: 'Anti-age', price: 499, img: 'img/block-4.jpg',
-    desc: 'Антиэйдж-стратегия: упругость, тонус, поддержка коллагена. Нежно и эффективно.' },
-  { id: 'block-5', title: 'Блок 5', subtitle: 'Массажи лица', price: 499, img: 'img/block-5.jpg',
-    desc: 'Техники самомассажа, лимфодренаж, как делать безопасно и с результатом.' },
-  { id: 'block-6', title: 'Блок 6', subtitle: 'Домашний уход', price: 499, img: 'img/block-6.jpg',
-    desc: 'Домашние процедуры, расписание ухода, как поддерживать эффект стабильно.' },
-  { id: 'block-7', title: 'Блок 7', subtitle: 'Поддержка результата', price: 499, img: 'img/block-7.jpg',
-    desc: 'Как закрепить результат, что делать при откатах и как не бросать уход.' },
-];
+// =====================
+//  SkinBlocks script.js
+//  - open block modal
+//  - buy block (DEV payment)
+//  - update UI immediately without reload
+//  - access cache in localStorage
+// =====================
 
-let allowedSet = new Set();
-let currentBlockId = null;
+const API = ""; // always use same-origin on Render
 
-/*************************************************
- * HELPERS
- *************************************************/
+function qs(sel, root = document) { return root.querySelector(sel); }
+function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
+
 function getEmail() {
-  return localStorage.getItem('email');
+  return localStorage.getItem('email') || '';
 }
+
 function setEmail(email) {
   localStorage.setItem('email', email);
 }
-function clearEmail() {
-  localStorage.removeItem('email');
+
+function getAllowedLocal() {
+  try { return JSON.parse(localStorage.getItem('allowed') || '[]'); }
+  catch { return []; }
+}
+function setAllowedLocal(arr) {
+  localStorage.setItem('allowed', JSON.stringify(arr || []));
+}
+function addAllowedLocal(blockId) {
+  const s = new Set(getAllowedLocal());
+  s.add(blockId);
+  setAllowedLocal([...s]);
+}
+function hasAccessLocal(blockId) {
+  return new Set(getAllowedLocal()).has(blockId);
 }
 
-/*************************************************
- * RENDER TILES
- *************************************************/
-function renderTiles() {
-  const grid = document.getElementById('tilesGrid');
-  if (!grid) return;
+// ---------- UI (Cards) ----------
+function markCardPurchased(card, blockId) {
+  if (!card) card = qs(`[data-block-id="${blockId}"]`);
+  if (!card) return;
 
-  grid.innerHTML = BLOCKS.map(b => {
-    const open = allowedSet.has(b.id);
-    return `
-      <div class="tile ${open ? 'is-open' : 'is-locked'}" data-id="${b.id}">
-        <div class="tile__image">
-          <img src="${b.img}" alt="${b.title}">
-        </div>
-        <div class="tile__content">
-          <div class="tile__title">${b.title}</div>
-          <div class="tile__subtitle">${b.subtitle}</div>
-          <div class="tile__price">${b.price} грн</div>
-          <div class="muted" style="font-size:12px;">
-            ${open ? '✅ Куплено. Нажми чтобы открыть' : '🔒 Нажми чтобы посмотреть и купить'}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
+  card.classList.add('purchased');
 
-  grid.querySelectorAll('.tile').forEach(tile => {
-    tile.addEventListener('click', () => openBlockModal(tile.dataset.id));
+  const status = qs('.block-status', card);
+  if (status) status.textContent = 'Куплено';
+
+  const btn = qs('.block-action', card);
+  if (btn) {
+    btn.textContent = 'Открыть';
+    btn.dataset.action = 'open';
+  }
+}
+
+function markCardLocked(card, blockId) {
+  if (!card) card = qs(`[data-block-id="${blockId}"]`);
+  if (!card) return;
+
+  card.classList.remove('purchased');
+
+  const status = qs('.block-status', card);
+  if (status) status.textContent = 'Закрыто';
+
+  const btn = qs('.block-action', card);
+  if (btn) {
+    btn.textContent = 'Купить';
+    btn.dataset.action = 'buy';
+  }
+}
+
+function refreshCardsFromLocal() {
+  qsa('[data-block-id]').forEach(card => {
+    const blockId = card.dataset.blockId;
+    if (!blockId) return;
+    if (hasAccessLocal(blockId)) markCardPurchased(card, blockId);
+    else markCardLocked(card, blockId);
   });
 }
 
-/*************************************************
- * BLOCK MODAL (описание + купить/открыть)
- *************************************************/
-const modalOverlay = document.getElementById('modalOverlay');
-const modalClose = document.getElementById('modalClose');
+// ---------- API ----------
+async function apiGetAccess(email) {
+  const res = await fetch(`${API}/api/access?email=${encodeURIComponent(email)}`);
+  return res.json();
+}
 
-const modalImg = document.getElementById('modalImg');
-const modalTitle = document.getElementById('modalTitle');
-const modalDesc = document.getElementById('modalDesc');
-const modalPrice = document.getElementById('modalPrice');
-const modalBadge = document.getElementById('modalBadge');
+async function apiCreatePayment(email, blockId) {
+  const res = await fetch(`${API}/api/payment/create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, productId: blockId })
+  });
+  return res.json();
+}
 
-const modalBuyBtn = document.getElementById('modalBuyBtn');
-const modalOpenBtn = document.getElementById('modalOpenBtn');
+// ---------- Modal ----------
+const modal = qs('#blockModal');
+const modalTitle = qs('#modalTitle');
+const modalDesc = qs('#modalDesc');
+const modalPrice = qs('#modalPrice');
+const modalBuyBtn = qs('#modalBuyBtn');
+const modalCloseBtn = qs('#modalCloseBtn');
+const modalError = qs('#modalError');
 
-function openBlockModal(blockId) {
-  const block = BLOCKS.find(b => b.id === blockId);
-  if (!block || !modalOverlay) return;
+let selectedBlockId = null;
 
-  currentBlockId = blockId;
-  const isOpen = allowedSet.has(blockId);
+function openModal(blockId, meta = {}) {
+  selectedBlockId = blockId;
 
-  modalImg.src = block.img;
-  modalImg.alt = block.title;
-  modalTitle.textContent = `${block.title} — ${block.subtitle}`;
-  modalDesc.textContent = block.desc;
-  modalPrice.textContent = `${block.price} грн`;
+  if (modalTitle) modalTitle.textContent = meta.title || `Блок ${blockId}`;
+  if (modalDesc) modalDesc.textContent = meta.desc || '';
+  if (modalPrice) modalPrice.textContent = meta.price || '';
 
-  modalBadge.textContent = isOpen ? 'Открыто' : 'Закрыто';
-  modalBadge.classList.toggle('open', isOpen);
+  if (modalError) modalError.textContent = '';
 
-  if (isOpen) {
-    modalBuyBtn.style.display = 'none';
-    modalOpenBtn.style.display = 'inline-flex';
-    modalOpenBtn.href = `block.html?bid=${encodeURIComponent(blockId)}`;
-  } else {
-    modalBuyBtn.style.display = 'inline-flex';
-    modalOpenBtn.style.display = 'none';
+  // если уже куплено — показываем "Открыть"
+  if (modalBuyBtn) {
+    if (hasAccessLocal(blockId)) {
+      modalBuyBtn.textContent = 'Открыть';
+      modalBuyBtn.dataset.mode = 'open';
+    } else {
+      modalBuyBtn.textContent = 'Купить';
+      modalBuyBtn.dataset.mode = 'buy';
+    }
   }
 
-  modalOverlay.classList.add('open');
-  modalOverlay.setAttribute('aria-hidden', 'false');
+  if (modal) modal.classList.add('open');
 }
 
-function closeBlockModal() {
-  if (!modalOverlay) return;
-  modalOverlay.classList.remove('open');
-  modalOverlay.setAttribute('aria-hidden', 'true');
-  currentBlockId = null;
+function closeModal() {
+  if (modal) modal.classList.remove('open');
+  selectedBlockId = null;
 }
 
-if (modalOverlay) {
-  modalOverlay.addEventListener('click', (e) => {
-    if (e.target === modalOverlay) closeBlockModal();
-  });
-}
-if (modalClose) modalClose.addEventListener('click', closeBlockModal);
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && modalOverlay?.classList.contains('open')) closeBlockModal();
-});
+// ---------- Auth ----------
+async function ensureEmail() {
+  let email = getEmail();
+  if (email) return email;
 
-if (modalBuyBtn) {
-  modalBuyBtn.addEventListener('click', () => {
-    if (!currentBlockId) return;
-    ensureLoggedInThen(() => buyProduct(currentBlockId));
-  });
+  // простой UX: попросить email при первом действии
+  email = prompt('Введите email (как для покупки):');
+  if (!email) return '';
+
+  setEmail(email.trim());
+  return getEmail();
 }
 
-/*************************************************
- * LOGIN MODAL
- *************************************************/
-const loginOverlay = document.getElementById('loginOverlay');
-const loginClose = document.getElementById('loginClose');
-const loginCancel = document.getElementById('loginCancel');
-const loginSubmit = document.getElementById('loginSubmit');
-const loginEmail = document.getElementById('loginEmail');
-
-const loginBtn = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-
-function openLoginModal(prefill = '') {
-  if (!loginOverlay) return;
-  loginEmail.value = prefill || '';
-  loginOverlay.classList.add('open');
-  loginOverlay.setAttribute('aria-hidden', 'false');
-  setTimeout(() => loginEmail.focus(), 50);
-}
-
-function closeLoginModal() {
-  if (!loginOverlay) return;
-  loginOverlay.classList.remove('open');
-  loginOverlay.setAttribute('aria-hidden', 'true');
-}
-
-if (loginOverlay) {
-  loginOverlay.addEventListener('click', (e) => {
-    if (e.target === loginOverlay) closeLoginModal();
-  });
-}
-if (loginClose) loginClose.addEventListener('click', closeLoginModal);
-if (loginCancel) loginCancel.addEventListener('click', closeLoginModal);
-
-function setAuthButtons() {
+async function refreshAccessFromServer() {
   const email = getEmail();
-  if (loginBtn) loginBtn.style.display = email ? 'none' : 'inline-flex';
-  if (logoutBtn) logoutBtn.style.display = email ? 'inline-flex' : 'none';
+  if (!email) return;
+
+  try {
+    const data = await apiGetAccess(email);
+    if (data.status === 'ok') {
+      setAllowedLocal(data.allowed || []);
+      refreshCardsFromLocal();
+    }
+  } catch (e) {
+    // ignore
+  }
 }
 
-if (loginBtn) {
-  loginBtn.addEventListener('click', () => openLoginModal(''));
-}
+// ---------- Actions ----------
+async function handleBuyOrOpen() {
+  if (!selectedBlockId) return;
 
-if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => {
-    clearEmail();
-    allowedSet = new Set();
-    setAuthButtons();
-    renderTiles();
-  });
-}
-
-function isValidEmail(v) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
-}
-
-function ensureLoggedInThen(fn) {
-  const email = getEmail();
-  if (email) return fn();
-  openLoginModal('');
-  // после успешного логина вызовем fn
-  pendingAfterLogin = fn;
-}
-
-let pendingAfterLogin = null;
-
-async function doLogin() {
-  const email = (loginEmail.value || '').trim().toLowerCase();
-  if (!isValidEmail(email)) {
-    alert('Введите корректный email');
+  // если уже куплено — сразу открыть
+  if (hasAccessLocal(selectedBlockId)) {
+    window.location.href = `/block.html?bid=${encodeURIComponent(selectedBlockId)}`;
     return;
   }
 
-  setEmail(email);
-  closeLoginModal();
-  setAuthButtons();
-  await loadAccess();
-
-  if (typeof pendingAfterLogin === 'function') {
-    const f = pendingAfterLogin;
-    pendingAfterLogin = null;
-    f();
-  }
-}
-
-if (loginSubmit) loginSubmit.addEventListener('click', doLogin);
-if (loginEmail) {
-  loginEmail.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') doLogin();
-  });
-}
-
-/*************************************************
- * ACCESS
- *************************************************/
-async function loadAccess() {
-  const email = getEmail();
+  const email = await ensureEmail();
   if (!email) {
-    allowedSet = new Set();
-    renderTiles();
+    if (modalError) modalError.textContent = 'Нужно указать email.';
     return;
   }
 
   try {
-    const res = await fetch(`/api/access?email=${encodeURIComponent(email)}`);
-    const data = await res.json();
-    allowedSet = new Set((data.allowed || []));
-    renderTiles();
-  } catch (err) {
-    console.error('ACCESS ERROR', err);
-    allowedSet = new Set();
-    renderTiles();
-  }
-}
-
-/*************************************************
- * BUY (DEV)
- *************************************************/
-async function buyProduct(productId) {
-  const email = getEmail();
-  if (!email) {
-    openLoginModal('');
-    pendingAfterLogin = () => buyProduct(productId);
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/payment/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId, email })
-    });
-    const data = await res.json();
+    const data = await apiCreatePayment(email, selectedBlockId);
 
     if (data.status !== 'ok') {
-      alert('Ошибка: ' + (data.message || 'unknown'));
+      if (modalError) modalError.textContent = 'Ошибка оплаты (DEV).';
+      else alert('Ошибка оплаты (DEV).');
       return;
     }
 
-    // DEV: сразу переходим на успех
-    if (data.dev) {
-      window.location.href = `payment-success.html?orderRef=${encodeURIComponent(data.orderRef)}`;
-      return;
-    }
+    // ✅ СРАЗУ обновляем UI без перезагрузки
+    addAllowedLocal(selectedBlockId);
+    markCardPurchased(null, selectedBlockId);
 
-  } catch (err) {
-    console.error('BUY ERROR', err);
-    alert('Ошибка соединения с сервером');
+    // закрыть модалку
+    closeModal();
+
+    // перейти на страницу блока
+    const url = data.redirectUrl || `/block.html?bid=${encodeURIComponent(selectedBlockId)}`;
+    window.location.href = url;
+
+  } catch (e) {
+    console.error(e);
+    if (modalError) modalError.textContent = 'Ошибка соединения с сервером';
+    else alert('Ошибка соединения с сервером');
   }
 }
 
-/*************************************************
- * START
- *************************************************/
-window.addEventListener('load', () => {
-  setAuthButtons();
-  loadAccess();
+// ---------- Event bindings ----------
+function bindCards() {
+  // клик по карточке
+  qsa('[data-block-id]').forEach(card => {
+    card.addEventListener('click', (e) => {
+      // если кликнули по кнопке внутри — не дублируем
+      if (e.target.closest('.block-action')) return;
+
+      const blockId = card.dataset.blockId;
+      const meta = {
+        title: card.dataset.title || qs('.block-title', card)?.textContent || '',
+        desc: card.dataset.desc || qs('.block-desc', card)?.textContent || '',
+        price: card.dataset.price || qs('.block-price', card)?.textContent || ''
+      };
+      openModal(blockId, meta);
+    });
+  });
+
+  // клик по кнопке "Купить/Открыть" в карточке
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.block-action');
+    if (!btn) return;
+
+    const card = btn.closest('[data-block-id]');
+    if (!card) return;
+
+    const blockId = card.dataset.blockId;
+
+    if (hasAccessLocal(blockId)) {
+      window.location.href = `/block.html?bid=${encodeURIComponent(blockId)}`;
+      return;
+    }
+
+    const meta = {
+      title: card.dataset.title || qs('.block-title', card)?.textContent || '',
+      desc: card.dataset.desc || qs('.block-desc', card)?.textContent || '',
+      price: card.dataset.price || qs('.block-price', card)?.textContent || ''
+    };
+    openModal(blockId, meta);
+  });
+}
+
+function bindModal() {
+  modalCloseBtn?.addEventListener('click', closeModal);
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  modalBuyBtn?.addEventListener('click', handleBuyOrOpen);
+}
+
+// ---------- init ----------
+window.addEventListener('load', async () => {
+  refreshCardsFromLocal();     // show cached state instantly
+  bindCards();
+  bindModal();
+  await refreshAccessFromServer(); // sync with server (optional)
 });
