@@ -106,3 +106,11 @@ initDb().then(() => {
   console.error('❌ DB init failed:', err);
   process.exit(1);
 });
+
+await pool.query(`
+  INSERT INTO lessons (block_id, title, video_url, position)
+  VALUES
+  ('block-1', 'Урок 1', 'https://your-video-url.mp4', 1),
+  ('block-1', 'Урок 2', 'https://your-video-url.mp4', 2)
+  ON CONFLICT DO NOTHING;
+`);
