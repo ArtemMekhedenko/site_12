@@ -194,6 +194,29 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+// DEV: открыть доступ к блоку без оплаты
+// /api/dev/grant?email=test@gmail.com&blockId=block-1
+app.get('/api/dev/grant', async (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase();
+  const blockId = (req.query.blockId || '').trim();
+
+  if (!email || !blockId) return res.json({ ok: false, message: 'email and blockId required' });
+
+  try {
+    await pool.query(
+      `INSERT INTO purchases(email, block_id)
+       VALUES($1,$2)
+       ON CONFLICT (email, block_id) DO NOTHING`,
+      [email, blockId]
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ ok: false });
+  }
+});
+
+
 /* ================================
    SPA ROUTE
 ================================ */
