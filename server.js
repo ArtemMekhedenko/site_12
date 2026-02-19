@@ -74,6 +74,13 @@ async function initDb() {
     ON lessons(block_id, position);
   `);
 
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS lessons_block_position_unique
+    ON lessons(block_id, position);
+  `);
+
+
+
   console.log('✅ DB initialized');
 
   await seedLessonsIfMissing();
