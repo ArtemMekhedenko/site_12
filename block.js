@@ -155,7 +155,7 @@ function isLessonDone(idx) {
 
 function updateBlockProgressUI() {
   if (!currentLessons.length) {
-    if (blockProgressText) blockProgressText.textContent = 'Прогресс: 0%';
+    if (blockProgressText) blockProgressText.textContent = 'Прогрес: 0%';
     if (blockProgressCount) blockProgressCount.textContent = '0/0';
     if (blockProgressBar) blockProgressBar.style.width = '0%';
     return;
