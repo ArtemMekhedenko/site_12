@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Вхід</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -9,12 +10,23 @@
 
   <div class="auth-card">
     <h1>Вхід</h1>
-    <p>Введіть email, який ви використовували при покупці</p>
+    <p>Введіть email — ми надішлемо (або покажемо в логах Render) код для входу</p>
 
-    <form id="loginForm">
+    <form id="emailForm">
       <input id="emailInput" type="email" placeholder="email@example.com" required />
-      <button type="submit" class="buy-btn big">Увійти</button>
+      <button type="submit" class="buy-btn big" id="sendCodeBtn">Отримати код</button>
     </form>
+
+    <div id="codeWrap" style="display:none; margin-top:14px;">
+      <form id="codeForm">
+        <input id="codeInput" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+               placeholder="Код з 6 цифр" required />
+        <button type="submit" class="buy-btn big" id="loginBtn">Увійти</button>
+      </form>
+      <button class="buy-btn big" id="resendBtn" type="button" style="margin-top:10px; opacity:.85;">
+        Надіслати код ще раз
+      </button>
+    </div>
 
     <p id="hint" class="hint"></p>
 
