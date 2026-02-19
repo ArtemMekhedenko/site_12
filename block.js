@@ -1,17 +1,15 @@
 /*************************************************
- * block.js (FULL)
- * - Access check
+ * block.js (FULL) — OTP COOKIE VERSION
+ * - Access check via /api/me + /api/access (cookie)
  * - Lessons from /api/lessons
  * - Active highlight + "Сейчас"
  * - Lesson progress + resume time
  * - Prev/Next + autoplay next
  * - Block progress + "Просмотрено ✔"
  * - Completion screen when all lessons done
+ * - Buy button works from block page (DEV) + instant unlock
  *************************************************/
 
-function getEmail() {
-  return localStorage.getItem('email');
-}
 function getParam(name) {
   return new URL(window.location.href).searchParams.get(name);
 }
@@ -46,6 +44,11 @@ const doneOverlay = document.getElementById('doneOverlay');
 const doneClose = document.getElementById('doneClose');
 const doneOk = document.getElementById('doneOk');
 
+// buy button on locked state (if exists)
+const buyBlockBtn = document.getElementById('buyBlockBtn'); // если у тебя есть id
+// если нет — попробуем найти по тексту/классу:
+const fallbackBuyBtn = buyBlockBtn || document.querySelector('[data-buy-block], .buy-block-btn');
+
 if (!blockId) {
   alert('Не указан блок (bid)');
   window.location.href = 'index.html#blocks';
@@ -56,11 +59,14 @@ if (blockTitle) blockTitle.textContent = `Блок: ${blockId}`;
 // state
 let currentLessons = [];
 let currentIdx = 0;
+let sessionEmail = null;
 
 // ===== logout =====
 if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => {
-    localStorage.removeItem('email');
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch (_) {}
     window.location.href = 'index.html#blocks';
   });
 }
@@ -89,6 +95,9 @@ function setLockedState(text) {
   if (blockProgressText) blockProgressText.textContent = 'Прогрес: —';
   if (blockProgressCount) blockProgressCount.textContent = '';
   if (blockProgressBar) blockProgressBar.style.width = '0%';
+
+  // показать кнопку покупки если есть
+  if (fallbackBuyBtn) fallbackBuyBtn.style.display = 'inline-flex';
 }
 
 function setOpenShell() {
@@ -102,6 +111,8 @@ function setOpenShell() {
 
   if (prevLessonBtn) prevLessonBtn.style.display = 'inline-flex';
   if (nextLessonBtn) nextLessonBtn.style.display = 'inline-flex';
+
+  if (fallbackBuyBtn) fallbackBuyBtn.style.display = 'none';
 }
 
 function openDoneModal() {
@@ -123,32 +134,78 @@ doneClose?.addEventListener('click', closeDoneModal);
 doneOk?.addEventListener('click', closeDoneModal);
 
 // ===== API =====
+async function fetchMe() {
+  try {
+    const r = await fetch('/api/me', { credentials: 'include' });
+    const data = await r.json();
+    sessionEmail = (data?.ok && data.email) ? data.email : null;
+  } catch (_) {
+    sessionEmail = null;
+  }
+}
+
 async function fetchLessons() {
-  const res = await fetch(`/api/lessons?blockId=${encodeURIComponent(blockId)}`);
+  const res = await fetch(`/api/lessons?blockId=${encodeURIComponent(blockId)}`, { credentials: 'include' });
   const data = await res.json();
   if (data.status !== 'ok') return [];
   return data.lessons || [];
 }
 
 async function checkAccess() {
-  const email = getEmail();
-  if (!email) return false;
-
-  const res = await fetch(`/api/access?email=${encodeURIComponent(email)}`);
+  // cookie-based access
+  const res = await fetch('/api/access', { credentials: 'include' });
   const data = await res.json();
   if (data.status !== 'ok') return false;
-
   return (data.allowed || []).includes(blockId);
 }
 
-// ===== Progress calc (A + B) =====
+async function buyThisBlock() {
+  // если не залогинен — отправим на login.html
+  if (!sessionEmail) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/payment/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      // email добавим как fallback (если сервер ещё ждёт email)
+      body: JSON.stringify({ productId: blockId, email: sessionEmail })
+    });
+    const data = await res.json();
+
+    if (data.status !== 'ok') {
+      alert(data.message || 'Ошибка оплаты/покупки');
+      return;
+    }
+
+    // ✅ моментально повторно проверяем доступ и перерисовываем
+    const allowed = await checkAccess();
+    if (!allowed) {
+      // на случай задержки БД — подождём 400мс и попробуем ещё раз
+      await new Promise(r => setTimeout(r, 400));
+    }
+
+    await init(true); // re-init, forced
+  } catch (e) {
+    console.error(e);
+    alert('Ошибка соединения с сервером.');
+  }
+}
+
+if (fallbackBuyBtn) {
+  fallbackBuyBtn.addEventListener('click', buyThisBlock);
+}
+
+// ===== Progress calc =====
 function getLessonProgress(idx) {
   const p = Number(localStorage.getItem(progressKey(idx)) || 0);
   return Number.isFinite(p) ? Math.max(0, Math.min(100, p)) : 0;
 }
 
 function isLessonDone(idx) {
-  // done if explicitly marked, or if progress >= 90
   if (localStorage.getItem(doneKey(idx)) === '1') return true;
   return getLessonProgress(idx) >= 90;
 }
@@ -172,9 +229,7 @@ function updateBlockProgressUI() {
   if (blockProgressCount) blockProgressCount.textContent = `${doneCount}/${currentLessons.length}`;
   if (blockProgressBar) blockProgressBar.style.width = `${percent}%`;
 
-  // Completion screen (C) — only when 100%
   if (doneCount === currentLessons.length && currentLessons.length > 0) {
-    // чтобы не бесило — показываем один раз за блок
     const flag = `done-block-${blockId}`;
     if (localStorage.getItem(flag) !== '1') {
       localStorage.setItem(flag, '1');
@@ -189,15 +244,12 @@ function updateLessonRowUI(idx) {
   const row = lessonsBox.querySelector(`.lesson-item[data-idx="${idx}"]`);
   if (!row) return;
 
-  // mark done style
   if (isLessonDone(idx)) row.classList.add('done');
   else row.classList.remove('done');
 
-  // update progress bar in row
   const bar = row.querySelector('.lesson-progress-bar');
   if (bar) bar.style.width = `${getLessonProgress(idx)}%`;
 
-  // add/remove check mark
   const existing = row.querySelector('.lesson-check');
   if (isLessonDone(idx)) {
     if (!existing) {
@@ -241,7 +293,6 @@ function renderLessons(lessons) {
     `;
   }).join('');
 
-  // click handlers
   lessonsBox.querySelectorAll('.lesson-item').forEach(item => {
     item.addEventListener('click', () => {
       const idx = Number(item.dataset.idx);
@@ -249,10 +300,8 @@ function renderLessons(lessons) {
     });
   });
 
-  // apply done/check UI for all rows
   for (let i = 0; i < lessons.length; i++) updateLessonRowUI(i);
 
-  // start: last or 0
   const saved = localStorage.getItem(lastKey());
   const startIdx = saved !== null ? Number(saved) : 0;
   goToLesson(Number.isFinite(startIdx) ? startIdx : 0);
@@ -287,12 +336,21 @@ function playLesson(idx) {
   const lesson = currentLessons[idx];
   if (!lesson || !videoPlayer) return;
 
+  // если lesson.video_url пустой — просто не стартуем
+  if (!lesson.video_url) {
+    if (lessonTitle) lessonTitle.textContent = lesson.title;
+    if (lessonHint) lessonHint.textContent = 'Видео ещё не загружено для этого урока.';
+    videoPlayer.pause();
+    videoPlayer.innerHTML = '';
+    return;
+  }
+
   currentIdx = idx;
   localStorage.setItem(lastKey(), String(idx));
 
   if (lessonTitle) lessonTitle.textContent = lesson.title;
+  if (lessonHint) lessonHint.textContent = '';
 
-  // replace source
   videoPlayer.pause();
   videoPlayer.innerHTML = '';
 
@@ -303,7 +361,6 @@ function playLesson(idx) {
 
   videoPlayer.load();
 
-  // restore time after metadata
   const savedTime = Number(localStorage.getItem(timeKey(idx)) || 0);
   const safeTime = Number.isFinite(savedTime) ? Math.max(0, savedTime) : 0;
 
@@ -324,6 +381,7 @@ function goToLesson(idx) {
   if (idx < 0) idx = 0;
   if (idx >= currentLessons.length) idx = currentLessons.length - 1;
 
+  currentIdx = idx;
   markActiveLesson(idx);
   playLesson(idx);
   updateNavButtons();
@@ -342,7 +400,6 @@ if (videoPlayer) {
     localStorage.setItem(timeKey(currentIdx), String(videoPlayer.currentTime));
     localStorage.setItem(progressKey(currentIdx), String(percent));
 
-    // if >= 90 mark as done
     if (percent >= 90) localStorage.setItem(doneKey(currentIdx), '1');
 
     updateLessonRowUI(currentIdx);
@@ -352,13 +409,11 @@ if (videoPlayer) {
   videoPlayer.addEventListener('ended', () => {
     if (!currentLessons.length) return;
 
-    // mark done when ended
     localStorage.setItem(doneKey(currentIdx), '1');
     localStorage.setItem(progressKey(currentIdx), '100');
     updateLessonRowUI(currentIdx);
     updateBlockProgressUI();
 
-    // autoplay next
     if (currentIdx < currentLessons.length - 1) {
       goToLesson(currentIdx + 1);
     }
@@ -366,8 +421,16 @@ if (videoPlayer) {
 }
 
 // ===== start =====
-async function init() {
+async function init(force = false) {
   try {
+    await fetchMe();
+
+    // если не залогинен — сразу lock + кнопка ведёт на login
+    if (!sessionEmail) {
+      setLockedState('🔒 Увійдіть, щоб перевірити доступ і відкрити уроки.');
+      return;
+    }
+
     const allowed = await checkAccess();
     if (!allowed) {
       setLockedState('🔒 У вас нет доступа к этому блоку. Купите его на главной странице.');
@@ -383,4 +446,4 @@ async function init() {
   }
 }
 
-window.addEventListener('load', init);
+window.addEventListener('load', () => init(false));
