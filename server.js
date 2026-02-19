@@ -2,32 +2,43 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/* ======================================================
+/* ================================
    DATABASE
-====================================================== */
-
-const DATABASE_URL = process.env.DATABASE_URL;
-
-if (!DATABASE_URL) {
-  console.error('❌ DATABASE_URL missing');
-  process.exit(1);
-}
+================================ */
 
 const pool = new Pool({
-  connectionString: DATABASE_URL,
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
+/* ================================
+   CLOUDINARY CONFIG
+================================ */
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+/* ================================
+   MIDDLEWARE
+================================ */
 
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-/* ======================================================
+const upload = multer({ storage: multer.memoryStorage() });
+
+/* ================================
    INIT DB
-====================================================== */
+================================ */
 
 async function initDb() {
   await pool.query(`
@@ -35,7 +46,6 @@ async function initDb() {
       id SERIAL PRIMARY KEY,
       email TEXT NOT NULL,
       block_id TEXT NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(email, block_id)
     );
   `);
@@ -50,153 +60,101 @@ async function initDb() {
     );
   `);
 
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS lessons_block_pos_idx
-    ON lessons(block_id, position);
-  `);
-
-  console.log('✅ DB initialized');
-
-  await seedLessons();
+  console.log("✅ DB initialized");
 }
 
-/* ======================================================
-   AUTO SEED (7 BLOCKS × 5 LESSONS)
-====================================================== */
-
-async function seedLessons() {
-  const blocks = 7;
-
-  for (let i = 1; i <= blocks; i++) {
-    const blockId = `block-${i}`;
-
-    const exists = await pool.query(
-      `SELECT 1 FROM lessons WHERE block_id=$1 LIMIT 1`,
-      [blockId]
-    );
-
-    if (exists.rows.length > 0) continue;
-
-    for (let j = 1; j <= 5; j++) {
-      await pool.query(
-        `INSERT INTO lessons(block_id, title, video_url, position)
-         VALUES($1,$2,$3,$4)`,
-        [
-          blockId,
-          `Урок ${j}`,
-          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-          j
-        ]
-      );
-    }
-
-    console.log(`🎬 Seeded ${blockId}`);
-  }
-}
-
-/* ======================================================
-   BUY (DEV MODE)
-====================================================== */
+/* ================================
+   BUY (DEV)
+================================ */
 
 app.post('/api/payment/create', async (req, res) => {
   const { email, productId } = req.body;
 
-  if (!email || !productId) {
+  if (!email || !productId)
     return res.json({ status: 'error', message: 'Missing data' });
-  }
 
-  try {
-    await pool.query(
-      `INSERT INTO purchases(email, block_id)
-       VALUES($1,$2)
-       ON CONFLICT (email, block_id) DO NOTHING`,
-      [email, productId]
-    );
+  await pool.query(
+    `INSERT INTO purchases(email, block_id)
+     VALUES($1,$2)
+     ON CONFLICT DO NOTHING`,
+    [email, productId]
+  );
 
-    return res.json({
-      status: 'ok',
-      redirectUrl: `/block.html?bid=${productId}`
-    });
-
-  } catch (err) {
-    console.error(err);
-    return res.json({ status: 'error', message: 'DB error' });
-  }
+  res.json({
+    status: 'ok',
+    redirectUrl: `/block.html?bid=${productId}`
+  });
 });
 
-/* ======================================================
-   ACCESS
-====================================================== */
-
-app.get('/api/access', async (req, res) => {
-  const email = req.query.email;
-
-  if (!email) return res.json({ status: 'ok', allowed: [] });
-
-  try {
-    const r = await pool.query(
-      `SELECT block_id FROM purchases WHERE email=$1`,
-      [email]
-    );
-
-    return res.json({
-      status: 'ok',
-      allowed: r.rows.map(x => x.block_id)
-    });
-
-  } catch (err) {
-    console.error(err);
-    return res.json({ status: 'error', allowed: [] });
-  }
-});
-
-/* ======================================================
+/* ================================
    GET LESSONS
-====================================================== */
+================================ */
 
 app.get('/api/lessons', async (req, res) => {
   const blockId = req.query.blockId;
 
-  if (!blockId)
-    return res.json({ status: 'error', lessons: [] });
+  const result = await pool.query(
+    `SELECT title, video_url, position
+     FROM lessons
+     WHERE block_id=$1
+     ORDER BY position`,
+    [blockId]
+  );
+
+  res.json({ status: 'ok', lessons: result.rows });
+});
+
+/* ================================
+   UPLOAD VIDEO TO CLOUDINARY
+================================ */
+
+app.post('/api/admin/upload-video', upload.single('video'), async (req, res) => {
+  const { blockId, title, position } = req.body;
+
+  if (!req.file || !blockId || !title || !position) {
+    return res.json({ ok: false, message: "Missing fields" });
+  }
 
   try {
-    const r = await pool.query(
-      `SELECT title, video_url, position
-       FROM lessons
-       WHERE block_id=$1
-       ORDER BY position ASC`,
-      [blockId]
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { resource_type: "video" },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      stream.end(req.file.buffer);
+    });
+
+    await pool.query(
+      `INSERT INTO lessons(block_id, title, video_url, position)
+       VALUES($1,$2,$3,$4)`,
+      [blockId, title, uploadResult.secure_url, position]
     );
 
-    return res.json({
-      status: 'ok',
-      lessons: r.rows
-    });
+    res.json({ ok: true, url: uploadResult.secure_url });
 
   } catch (err) {
     console.error(err);
-    return res.json({ status: 'error', lessons: [] });
+    res.json({ ok: false, message: "Upload error" });
   }
 });
 
-/* ======================================================
-   SPA FALLBACK
-====================================================== */
+/* ================================
+   SPA ROUTE
+================================ */
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-/* ======================================================
+/* ================================
    START
-====================================================== */
+================================ */
 
 initDb().then(() => {
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
   });
-}).catch(err => {
-  console.error('❌ DB init failed:', err);
-  process.exit(1);
 });
