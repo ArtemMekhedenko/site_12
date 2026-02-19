@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Вхід — SkinBlocks</title>
 
-  <!-- основной стиль сайта -->
   <link rel="stylesheet" href="style.css">
-  <!-- стиль только для логина -->
   <link rel="stylesheet" href="style-login.css">
 </head>
 <body class="login-page">
@@ -32,8 +30,7 @@
 
       <h1 class="login-title">Вхід</h1>
       <p class="login-subtitle">
-        Введіть email — ми надішлемо код підтвердження.
-        Доступ до блоків прив’язаний до вашого облікового запису.
+        Введіть email — отримаєте код підтвердження. Доступ до блоків прив’язаний до вашого облікового запису.
       </p>
 
       <!-- EMAIL -->
@@ -64,19 +61,18 @@
           <div class="code-hint">6 цифр</div>
         </div>
 
-        <form id="codeForm" class="login-form">
-          <label class="field">
-            <span class="label">Код</span>
-            <div class="input-wrap">
-              <span class="icon">🔒</span>
-              <input id="codeInput"
-                     inputmode="numeric"
-                     pattern="[0-9]*"
-                     maxlength="6"
-                     placeholder="123456"
-                     required />
-            </div>
-          </label>
+        <form id="codeForm" class="login-form" autocomplete="one-time-code">
+          <!-- Скрытое поле: в него соберём 6 цифр, чтобы удобно отправлять -->
+          <input type="hidden" id="codeInput" />
+
+          <div class="otp" id="otp">
+            <input class="otp-box" inputmode="numeric" maxlength="1" aria-label="digit 1">
+            <input class="otp-box" inputmode="numeric" maxlength="1" aria-label="digit 2">
+            <input class="otp-box" inputmode="numeric" maxlength="1" aria-label="digit 3">
+            <input class="otp-box" inputmode="numeric" maxlength="1" aria-label="digit 4">
+            <input class="otp-box" inputmode="numeric" maxlength="1" aria-label="digit 5">
+            <input class="otp-box" inputmode="numeric" maxlength="1" aria-label="digit 6">
+          </div>
 
           <button type="submit" class="btn-primary" id="loginBtn">
             Увійти

@@ -1,5 +1,4 @@
 // auth.js — OTP login (email + code)
-// Работает с сервером:
 // POST /api/auth/request-code { email }
 // POST /api/auth/verify-code { email, code }
 // GET  /api/me
@@ -8,7 +7,7 @@ const emailForm = document.getElementById('emailForm');
 const codeForm = document.getElementById('codeForm');
 
 const emailInput = document.getElementById('emailInput');
-const codeInput = document.getElementById('codeInput');
+const hiddenCodeInput = document.getElementById('codeInput');
 
 const codeWrap = document.getElementById('codeWrap');
 const hint = document.getElementById('hint');
@@ -16,6 +15,9 @@ const hint = document.getElementById('hint');
 const sendCodeBtn = document.getElementById('sendCodeBtn');
 const loginBtn = document.getElementById('loginBtn');
 const resendBtn = document.getElementById('resendBtn');
+
+const otpRoot = document.getElementById('otp');
+const otpBoxes = otpRoot ? Array.from(otpRoot.querySelectorAll('.otp-box')) : [];
 
 function setHint(msg = '', type = '') {
   hint.textContent = msg;
@@ -30,12 +32,36 @@ function setBusy(btn, busy, textWhenBusy = 'Зачекайте...') {
   btn.textContent = busy ? textWhenBusy : btn.dataset._text;
 }
 
+function sanitizeDigit(ch) {
+  const m = String(ch || '').match(/\d/);
+  return m ? m[0] : '';
+}
+
+function readOtp() {
+  return otpBoxes.map(b => sanitizeDigit(b.value)).join('');
+}
+
+function writeOtp(code) {
+  const digits = String(code || '').replace(/\D/g, '').slice(0, 6).split('');
+  otpBoxes.forEach((b, i) => b.value = digits[i] || '');
+  hiddenCodeInput.value = digits.join('');
+}
+
+function focusFirstEmpty() {
+  const idx = otpBoxes.findIndex(b => !b.value);
+  (otpBoxes[idx === -1 ? 5 : idx] || otpBoxes[0])?.focus();
+}
+
+function clearOtp() {
+  otpBoxes.forEach(b => b.value = '');
+  hiddenCodeInput.value = '';
+}
+
 async function checkAlreadyLoggedIn() {
   try {
     const r = await fetch('/api/me', { credentials: 'include' });
     const data = await r.json();
     if (data?.ok && data.email) {
-      // уже есть сессия
       window.location.href = 'index.html';
     }
   } catch (_) {}
@@ -63,7 +89,8 @@ async function requestCode(email) {
     }
 
     codeWrap.style.display = 'block';
-    codeInput.focus();
+    clearOtp();
+    focusFirstEmpty();
 
     setHint('Код надіслано. Якщо ти в DEV — код буде в Render Logs.', 'ok');
     return true;
@@ -76,7 +103,7 @@ async function requestCode(email) {
   }
 }
 
-// 2) підтвердити код
+// 2) подтвердить код
 async function verifyCode(email, code) {
   setBusy(loginBtn, true);
 
@@ -95,9 +122,6 @@ async function verifyCode(email, code) {
     }
 
     setHint('Готово! Вхід виконано ✅', 'ok');
-
-    // важно: cookie сессия уже установлена сервером
-    // переносим на главную
     window.location.href = 'index.html';
     return true;
   } catch (e) {
@@ -127,10 +151,59 @@ resendBtn.addEventListener('click', async () => {
   await requestCode(email);
 });
 
+// OTP boxes behavior
+if (otpBoxes.length) {
+  otpBoxes.forEach((box, i) => {
+    box.addEventListener('input', () => {
+      const d = sanitizeDigit(box.value);
+      box.value = d;
+
+      hiddenCodeInput.value = readOtp();
+
+      if (d && i < otpBoxes.length - 1) otpBoxes[i + 1].focus();
+
+      const full = hiddenCodeInput.value;
+      if (/^\d{6}$/.test(full)) {
+        // auto submit (без кнопки)
+        codeForm.requestSubmit();
+      }
+    });
+
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        if (box.value) {
+          box.value = '';
+          hiddenCodeInput.value = readOtp();
+          return;
+        }
+        if (i > 0) {
+          otpBoxes[i - 1].focus();
+          otpBoxes[i - 1].value = '';
+          hiddenCodeInput.value = readOtp();
+        }
+      }
+
+      if (e.key === 'ArrowLeft' && i > 0) otpBoxes[i - 1].focus();
+      if (e.key === 'ArrowRight' && i < otpBoxes.length - 1) otpBoxes[i + 1].focus();
+    });
+
+    box.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text');
+      writeOtp(text);
+      focusFirstEmpty();
+      if (/^\d{6}$/.test(hiddenCodeInput.value)) {
+        codeForm.requestSubmit();
+      }
+    });
+  });
+}
+
 codeForm.addEventListener('submit', async (e) => {
   e.preventDefault();
+
   const email = emailInput.value.trim().toLowerCase();
-  const code = codeInput.value.trim();
+  const code = hiddenCodeInput.value.trim();
 
   if (!email) {
     setHint('Спочатку введіть email.', 'err');
@@ -139,6 +212,7 @@ codeForm.addEventListener('submit', async (e) => {
 
   if (!/^\d{6}$/.test(code)) {
     setHint('Введіть код з 6 цифр.', 'err');
+    focusFirstEmpty();
     return;
   }
 
