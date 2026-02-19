@@ -4,37 +4,31 @@
 
 const BLOCKS = [
   { id: 'block-1', title: 'Блок 1', subtitle: 'Назва', price: 499, img: 'img/block-1.jpg',
-    desc: 'Опис                                                 ' },
+    desc: 'Опис' },
   { id: 'block-2', title: 'Блок 2', subtitle: 'Назва', price: 499, img: 'img/block-2.jpg',
-    desc: 'Опис                                        ' },
+    desc: 'Опис' },
   { id: 'block-3', title: 'Блок 3', subtitle: 'Назва', price: 499, img: 'img/block-3.jpg',
-    desc: 'опис                                                        ' },
+    desc: 'Опис' },
   { id: 'block-4', title: 'Блок 4', subtitle: 'Назва', price: 499, img: 'img/block-4.jpg',
-    desc: 'опис                                    ' },
+    desc: 'Опис' },
   { id: 'block-5', title: 'Блок 5', subtitle: 'Назва', price: 499, img: 'img/block-5.jpg',
-    desc: 'опис                                              ' },
+    desc: 'Опис' },
   { id: 'block-6', title: 'Блок 6', subtitle: 'Назва', price: 499, img: 'img/block-6.jpg',
-    desc: 'рпис                                                              ' },
+    desc: 'Опис' },
   { id: 'block-7', title: 'Блок 7', subtitle: 'Назва', price: 499, img: 'img/block-7.jpg',
-    desc: 'опис                                                                      .' },
+    desc: 'Опис' },
 ];
 
 let allowedSet = new Set();
 let currentBlockId = null;
 
-/*************************************************
- * HELPERS: EMAIL + LOCAL ALLOWED
- *************************************************/
+// email теперь берём НЕ из localStorage, а из cookie-сессии (OTP)
+let sessionEmail = null;
 
-function getEmail() {
-  return localStorage.getItem('email') || '';
-}
-function setEmail(email) {
-  localStorage.setItem('email', email);
-}
-function clearEmail() {
-  localStorage.removeItem('email');
-}
+/*************************************************
+ * HELPERS: LOCAL CACHE (только для удобства UI)
+ * Можно оставить, но мы будем уважать сервер.
+ *************************************************/
 
 function getLocalAllowed() {
   try { return JSON.parse(localStorage.getItem('allowed') || '[]'); }
@@ -47,6 +41,9 @@ function addLocalAllowed(blockId) {
   const s = new Set(getLocalAllowed());
   s.add(blockId);
   setLocalAllowed([...s]);
+}
+function clearLocalAllowed() {
+  localStorage.removeItem('allowed');
 }
 
 /*************************************************
@@ -107,23 +104,31 @@ function openBlockModal(blockId) {
   currentBlockId = blockId;
   const isOpen = allowedSet.has(blockId);
 
-  modalImg.src = block.img;
-  modalImg.alt = block.title;
-  modalTitle.textContent = `${block.title} — ${block.subtitle}`;
-  modalDesc.textContent = block.desc;
-  modalPrice.textContent = `${block.price} грн`;
+  if (modalImg) {
+    modalImg.src = block.img;
+    modalImg.alt = block.title;
+  }
+  if (modalTitle) modalTitle.textContent = `${block.title} — ${block.subtitle}`;
+  if (modalDesc) modalDesc.textContent = block.desc;
+  if (modalPrice) modalPrice.textContent = `${block.price} грн`;
 
-  modalBadge.textContent = isOpen ? 'Відкрито' : 'Закрито';
-  modalBadge.classList.toggle('open', isOpen);
+  if (modalBadge) {
+    modalBadge.textContent = isOpen ? 'Відкрито' : 'Закрито';
+    modalBadge.classList.toggle('open', isOpen);
+  }
 
   if (isOpen) {
-    modalBuyBtn.style.display = 'none';
-    modalOpenBtn.style.display = 'inline-flex';
-    modalOpenBtn.href = `block.html?bid=${encodeURIComponent(blockId)}`;
+    if (modalBuyBtn) modalBuyBtn.style.display = 'none';
+    if (modalOpenBtn) {
+      modalOpenBtn.style.display = 'inline-flex';
+      modalOpenBtn.href = `block.html?bid=${encodeURIComponent(blockId)}`;
+    }
   } else {
-    modalBuyBtn.style.display = 'inline-flex';
-    modalOpenBtn.style.display = 'none';
-    modalOpenBtn.href = '#';
+    if (modalBuyBtn) modalBuyBtn.style.display = 'inline-flex';
+    if (modalOpenBtn) {
+      modalOpenBtn.style.display = 'none';
+      modalOpenBtn.href = '#';
+    }
   }
 
   modalOverlay.classList.add('open');
@@ -145,109 +150,76 @@ if (modalOverlay) {
 }
 
 /*************************************************
- * LOGIN MODAL
+ * AUTH UI (OTP cookie)
  *************************************************/
 
 const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 
-const loginOverlay = document.getElementById('loginOverlay');
-const loginClose = document.getElementById('loginClose');
-const loginCancel = document.getElementById('loginCancel');
-const loginSubmit = document.getElementById('loginSubmit');
-const loginEmail = document.getElementById('loginEmail');
-
-let pendingAfterLogin = null;
-
-function openLoginModal(prefillEmail) {
-  if (!loginOverlay) return;
-  if (loginEmail) loginEmail.value = (prefillEmail || '').trim();
-  loginOverlay.classList.add('open');
-  loginOverlay.setAttribute('aria-hidden', 'false');
-  setTimeout(() => loginEmail?.focus(), 50);
-}
-
-function closeLoginModal() {
-  if (!loginOverlay) return;
-  loginOverlay.classList.remove('open');
-  loginOverlay.setAttribute('aria-hidden', 'true');
-}
-
-if (loginOverlay) {
-  loginOverlay.addEventListener('click', (e) => {
-    if (e.target === loginOverlay) closeLoginModal();
-  });
-}
-if (loginClose) loginClose.addEventListener('click', closeLoginModal);
-if (loginCancel) loginCancel.addEventListener('click', closeLoginModal);
-
 function setAuthButtons() {
-  const email = getEmail();
-  if (loginBtn) loginBtn.style.display = email ? 'none' : 'inline-flex';
-  if (logoutBtn) logoutBtn.style.display = email ? 'inline-flex' : 'none';
+  const loggedIn = !!sessionEmail;
+  if (loginBtn) loginBtn.style.display = loggedIn ? 'none' : 'inline-flex';
+  if (logoutBtn) logoutBtn.style.display = loggedIn ? 'inline-flex' : 'none';
 }
 
-if (loginBtn) {
-  loginBtn.addEventListener('click', () => openLoginModal(''));
+function goToLogin() {
+  // ВАЖНО: теперь логин делаем на login.html (OTP)
+  window.location.href = 'login.html';
 }
+
+if (loginBtn) loginBtn.addEventListener('click', goToLogin);
 
 if (logoutBtn) {
-  logoutBtn.addEventListener('click', () => {
-    clearEmail();
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (e) {
+      // даже если сеть упала — чистим локально
+    }
+    sessionEmail = null;
     allowedSet = new Set();
-    setLocalAllowed([]);
+    clearLocalAllowed();
     setAuthButtons();
     renderTiles();
   });
 }
 
-function isValidEmail(v) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+/*************************************************
+ * ACCESS (через cookie /api/me + /api/access)
+ *************************************************/
+
+async function loadMe() {
+  try {
+    const r = await fetch('/api/me', { credentials: 'include' });
+    const data = await r.json();
+    sessionEmail = (data && data.ok && data.email) ? data.email : null;
+  } catch (e) {
+    sessionEmail = null;
+  }
 }
 
-async function doLogin() {
-  const email = (loginEmail?.value || '').trim().toLowerCase();
-  if (!isValidEmail(email)) {
-    alert('Введіть правильний email');
+async function loadAccess() {
+  // быстрый UI: показываем кэш только если уже когда-то были разрешения
+  // (но окончательное состояние берём от сервера)
+  const localAllowed = getLocalAllowed();
+  if (localAllowed.length) {
+    allowedSet = new Set(localAllowed);
+    renderTiles();
+  }
+
+  // если не залогинен — серверный доступ пустой
+  if (!sessionEmail) {
+    allowedSet = new Set();           // строго: без логина доступа нет
+    renderTiles();
     return;
   }
 
-  setEmail(email);
-  closeLoginModal();
-  setAuthButtons();
-  await loadAccess();
-
-  if (typeof pendingAfterLogin === 'function') {
-    const f = pendingAfterLogin;
-    pendingAfterLogin = null;
-    f();
-  }
-}
-
-if (loginSubmit) loginSubmit.addEventListener('click', doLogin);
-if (loginEmail) {
-  loginEmail.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') doLogin();
-  });
-}
-
-/*************************************************
- * ACCESS
- *************************************************/
-
-async function loadAccess() {
-  const email = getEmail();
-
-  // сначала применим локальный кэш — чтобы UI был мгновенным
-  const localAllowed = getLocalAllowed();
-  allowedSet = new Set(localAllowed);
-  renderTiles();
-
-  if (!email) return;
-
-  // потом синхронизируемся с сервером
   try {
-    const res = await fetch(`/api/access?email=${encodeURIComponent(email)}`);
+    // теперь просим доступ БЕЗ email, по cookie
+    const res = await fetch('/api/access', { credentials: 'include' });
     const data = await res.json();
 
     const allowed = (data.allowed || []);
@@ -256,19 +228,18 @@ async function loadAccess() {
     renderTiles();
   } catch (err) {
     console.error('ACCESS ERROR', err);
-    // остаёмся на локальном кэше
+    // остаёмся на local cache
   }
 }
 
 /*************************************************
- * BUY (DEV) — ВАЖНО: обновляет UI СРАЗУ
+ * BUY (DEV) — с cookie. UI обновляется сразу.
  *************************************************/
 
 async function buyProduct(productId) {
-  const email = getEmail();
-  if (!email) {
-    openLoginModal('');
-    pendingAfterLogin = () => buyProduct(productId);
+  if (!sessionEmail) {
+    // нет сессии -> на login.html
+    goToLogin();
     return;
   }
 
@@ -276,7 +247,9 @@ async function buyProduct(productId) {
     const res = await fetch('/api/payment/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId, email })
+      credentials: 'include',
+      // email больше не нужен, но оставим fallback если сервер старый:
+      body: JSON.stringify({ productId, email: sessionEmail })
     });
 
     const data = await res.json();
@@ -286,11 +259,9 @@ async function buyProduct(productId) {
       return;
     }
 
-    // ✅ СРАЗУ добавляем доступ в память + localStorage
+    // ✅ сразу обновляем UI (без перезагрузки)
     allowedSet.add(productId);
     addLocalAllowed(productId);
-
-    // ✅ сразу обновляем плитки и модалку (без перезагрузки)
     renderTiles();
 
     if (modalBadge) {
@@ -303,13 +274,8 @@ async function buyProduct(productId) {
       modalOpenBtn.href = `block.html?bid=${encodeURIComponent(productId)}`;
     }
 
-    // если сервер дал redirectUrl — переходим
-    if (data.redirectUrl) {
-      window.location.href = data.redirectUrl;
-    } else {
-      // по умолчанию: открыть блок
-      window.location.href = `block.html?bid=${encodeURIComponent(productId)}`;
-    }
+    // переход на блок
+    window.location.href = data.redirectUrl || `block.html?bid=${encodeURIComponent(productId)}`;
 
   } catch (err) {
     console.error('BUY ERROR', err);
@@ -332,7 +298,9 @@ if (modalBuyBtn) {
  * START
  *************************************************/
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
+  renderTiles();        // первичный рендер
+  await loadMe();       // узнаём, есть ли сессия
   setAuthButtons();
-  loadAccess();
+  await loadAccess();   // подтягиваем allowed с сервера
 });
