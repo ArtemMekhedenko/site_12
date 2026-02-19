@@ -8,6 +8,11 @@ const cloudinary = require('cloudinary').v2;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
+
+
 /* ================================
    DATABASE
 ================================ */
@@ -79,6 +84,30 @@ async function initDb() {
     ON lessons(block_id, position);
   `);
 
+  await pool.query(`
+  CREATE TABLE IF NOT EXISTS login_codes (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL,
+    code_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      token_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS login_codes_email_idx ON login_codes(email);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS sessions_email_idx ON sessions(email);`);
+
+
 
 
   console.log('✅ DB initialized');
@@ -119,6 +148,17 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+function sha256(s) {
+  return crypto.createHash('sha256').update(s).digest('hex');
+}
+function randomToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+function randomCode6() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+
 /* ================================
    BUY (DEV)
 ================================ */
@@ -152,24 +192,25 @@ app.post('/api/payment/create', async (req, res) => {
    ACCESS
 ================================ */
 app.get('/api/access', async (req, res) => {
-  const email = (req.query.email || '').trim().toLowerCase();
-  if (!email) return res.json({ status: 'ok', allowed: [] });
+  const token = req.cookies.session;
+  if (!token) return res.json({ status:'ok', allowed: [] });
 
-  try {
-    const result = await pool.query(
-      `SELECT block_id FROM purchases WHERE email=$1`,
-      [email]
-    );
+  const tokenHash = sha256(token);
 
-    return res.json({
-      status: 'ok',
-      allowed: result.rows.map(r => r.block_id)
-    });
-  } catch (e) {
-    console.error(e);
-    return res.json({ status: 'error', allowed: [] });
-  }
+  const s = await pool.query(
+    `SELECT email, expires_at FROM sessions WHERE token_hash=$1 LIMIT 1`,
+    [tokenHash]
+  );
+
+  if (s.rows.length === 0) return res.json({ status:'ok', allowed: [] });
+  if (new Date(s.rows[0].expires_at).getTime() < Date.now()) return res.json({ status:'ok', allowed: [] });
+
+  const email = s.rows[0].email;
+
+  const r = await pool.query(`SELECT block_id FROM purchases WHERE email=$1`, [email]);
+  return res.json({ status:'ok', allowed: r.rows.map(x => x.block_id) });
 });
+
 
 /* ================================
    GET LESSONS
@@ -271,6 +312,106 @@ app.get('/api/dev/grant', async (req, res) => {
     return res.status(500).json({ ok: false });
   }
 });
+
+// 1) Запрос кода на email
+app.post('/api/auth/request-code', async (req, res) => {
+  const email = (req.body.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ ok:false, message:'email required' });
+
+  const code = randomCode6();
+  const codeHash = sha256(code);
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 минут
+
+  // очищаем старые коды этого email (чтобы был 1 актуальный)
+  await pool.query(`DELETE FROM login_codes WHERE email=$1`, [email]);
+
+  await pool.query(
+    `INSERT INTO login_codes(email, code_hash, expires_at)
+     VALUES($1,$2,$3)`,
+    [email, codeHash, expiresAt]
+  );
+
+  // DEV режим: если нет email-сервиса — покажем код в логах
+  console.log(`🔐 LOGIN CODE for ${email}: ${code} (valid 5 min)`);
+
+  // PROD режим: сюда позже подключим отправку письма через Resend/SMTP
+  return res.json({ ok:true });
+});
+
+// 2) Проверка кода, создание сессии
+app.post('/api/auth/verify-code', async (req, res) => {
+  const email = (req.body.email || '').trim().toLowerCase();
+  const code = (req.body.code || '').trim();
+  if (!email || !code) return res.status(400).json({ ok:false, message:'email and code required' });
+
+  const r = await pool.query(
+    `SELECT code_hash, expires_at FROM login_codes WHERE email=$1 LIMIT 1`,
+    [email]
+  );
+
+  if (r.rows.length === 0) return res.status(400).json({ ok:false, message:'code not found' });
+
+  const row = r.rows[0];
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    return res.status(400).json({ ok:false, message:'code expired' });
+  }
+
+  if (sha256(code) !== row.code_hash) {
+    return res.status(400).json({ ok:false, message:'wrong code' });
+  }
+
+  // код одноразовый
+  await pool.query(`DELETE FROM login_codes WHERE email=$1`, [email]);
+
+  // создаём сессию (30 дней)
+  const token = randomToken();
+  const tokenHash = sha256(token);
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  await pool.query(
+    `INSERT INTO sessions(email, token_hash, expires_at)
+     VALUES($1,$2,$3)`,
+    [email, tokenHash, expiresAt]
+  );
+
+  // httpOnly cookie (JS не сможет её прочитать → безопаснее)
+  res.cookie('session', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: true, // на Render https
+    maxAge: 30 * 24 * 60 * 60 * 1000
+  });
+
+  return res.json({ ok:true });
+});
+
+// 3) Кто я
+app.get('/api/me', async (req, res) => {
+  const token = req.cookies.session;
+  if (!token) return res.json({ ok:true, email:null });
+
+  const tokenHash = sha256(token);
+  const r = await pool.query(
+    `SELECT email, expires_at FROM sessions WHERE token_hash=$1 LIMIT 1`,
+    [tokenHash]
+  );
+
+  if (r.rows.length === 0) return res.json({ ok:true, email:null });
+  if (new Date(r.rows[0].expires_at).getTime() < Date.now()) return res.json({ ok:true, email:null });
+
+  return res.json({ ok:true, email: r.rows[0].email });
+});
+
+// 4) Выход
+app.post('/api/auth/logout', async (req, res) => {
+  const token = req.cookies.session;
+  if (token) {
+    await pool.query(`DELETE FROM sessions WHERE token_hash=$1`, [sha256(token)]);
+  }
+  res.clearCookie('session');
+  res.json({ ok:true });
+});
+
 
 /* ================================
    SPA ROUTE
