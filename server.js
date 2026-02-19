@@ -45,8 +45,8 @@ async function initDb() {
       id SERIAL PRIMARY KEY,
       block_id TEXT NOT NULL,
       title TEXT NOT NULL,
-      video_url TEXT NOT NULL DEFAULT '',
-      position INT NOT NULL DEFAULT 1
+      video_url TEXT NOT NULL,
+      position INT NOT NULL
     );
   `);
 
@@ -84,18 +84,18 @@ async function seedLessons() {
         [
           blockId,
           `Урок ${j}`,
-          '',
+          "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
           j
         ]
       );
     }
 
-    console.log(`🎬 Seeded lessons for ${blockId}`);
+    console.log(`🎬 Seeded ${blockId}`);
   }
 }
 
 /* ======================================================
-   BUY (DEV MODE — без оплаты)
+   BUY (DEV MODE)
 ====================================================== */
 
 app.post('/api/payment/create', async (req, res) => {
@@ -125,14 +125,13 @@ app.post('/api/payment/create', async (req, res) => {
 });
 
 /* ======================================================
-   ACCESS CHECK
+   ACCESS
 ====================================================== */
 
 app.get('/api/access', async (req, res) => {
   const email = req.query.email;
 
-  if (!email)
-    return res.json({ status: 'ok', allowed: [] });
+  if (!email) return res.json({ status: 'ok', allowed: [] });
 
   try {
     const r = await pool.query(
@@ -182,54 +181,22 @@ app.get('/api/lessons', async (req, res) => {
 });
 
 /* ======================================================
-   DEV: SET VIDEO LINK
-====================================================== */
-
-app.post('/api/dev/set-video', async (req, res) => {
-  const { blockId, position, videoUrl } = req.body;
-
-  if (!blockId || !position || !videoUrl) {
-    return res.status(400).json({
-      ok: false,
-      message: 'blockId, position, videoUrl required'
-    });
-  }
-
-  try {
-    await pool.query(
-      `UPDATE lessons
-       SET video_url=$1
-       WHERE block_id=$2 AND position=$3`,
-      [videoUrl, blockId, Number(position)]
-    );
-
-    return res.json({ ok: true });
-
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ ok: false });
-  }
-});
-
-/* ======================================================
    SPA FALLBACK
 ====================================================== */
 
-app.get('/*', (req, res) => {
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 /* ======================================================
-   START SERVER
+   START
 ====================================================== */
 
-initDb()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-    });
-  })
-  .catch(err => {
-    console.error('❌ DB init failed:', err);
-    process.exit(1);
+initDb().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
   });
+}).catch(err => {
+  console.error('❌ DB init failed:', err);
+  process.exit(1);
+});

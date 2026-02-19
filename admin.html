@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin • Upload</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container" style="padding:40px 16px; max-width:720px;">
+    <h1 style="margin:0 0 16px;">Admin — загрузка видео</h1>
+
+    <div class="card" style="padding:16px;">
+      <div style="display:grid; gap:12px;">
+        <input id="token" class="input" placeholder="ADMIN_TOKEN" type="password" />
+        <input id="blockId" class="input" placeholder="block-1" />
+        <input id="position" class="input" placeholder="position (1..5)" type="number" min="1" />
+        <input id="title" class="input" placeholder="Название урока (необязательно)" />
+        <input id="file" class="input" type="file" accept="video/*" />
+
+        <button id="send" class="btn btn--primary" type="button">Загрузить</button>
+
+        <div id="out" class="muted" style="white-space:pre-wrap;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    $('send').addEventListener('click', async () => {
+      const token = $('token').value.trim();
+      const blockId = $('blockId').value.trim();
+      const position = $('position').value.trim();
+      const title = $('title').value.trim();
+      const file = $('file').files[0];
+
+      if (!token || !blockId || !position || !file) {
+        $('out').textContent = 'Заполни token, blockId, position и выбери файл';
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('token', token);
+      fd.append('blockId', blockId);
+      fd.append('position', position);
+      fd.append('title', title);
+      fd.append('file', file);
+
+      $('out').textContent = 'Загрузка...';
+
+      const res = await fetch('/api/admin/upload-video', { method: 'POST', body: fd });
+      const data = await res.json().catch(() => ({}));
+
+      $('out').textContent = JSON.stringify(data, null, 2);
+    });
+  </script>
+</body>
+</html>
