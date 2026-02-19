@@ -34,8 +34,8 @@
       <!-- PLAYER -->
       <div class="panel">
         <div class="panel__top">
-          <h3 class="panel__title" id="lessonTitle">Выберите урок</h3>
-          <div class="panel__meta" id="lessonHint">После покупки здесь появятся уроки и видео.</div>
+          <h3 class="panel__title" id="lessonTitle">Виберіть урок</h3>
+          <div class="panel__meta" id="lessonHint">Після покупки тут з'являться уроки та відео.</div>
         </div>
 
         <div class="video-shell">
@@ -44,13 +44,13 @@
           </video>
 
           <div class="player-actions">
-            <button class="btn btn--ghost" id="prevLessonBtn" type="button">← Предыдущий</button>
-            <button class="btn btn--primary" id="nextLessonBtn" type="button">Следующий урок →</button>
+            <button class="btn btn--ghost" id="prevLessonBtn" type="button">← Попередній</button>
+            <button class="btn btn--primary" id="nextLessonBtn" type="button">Наступний урок →</button>
           </div>
 
 
           <div id="videoLocked" class="video-locked" style="display:none;">
-            🔒 У вас нет доступа к этому блоку. Купите его на главной странице.
+            🔒 У вас немає доступу до цього блоку. Купуйте його на головній сторінці.
             <div style="margin-top:12px;">
               <a class="btn btn--primary" href="index.html#blocks">Перейти к блокам</a>
             </div>
@@ -64,7 +64,7 @@
           <h3 class="panel__title">Уроки</h3>
           <div class="block-progress">
             <div class="block-progress__top">
-              <div class="block-progress__label" id="blockProgressText">Прогресс: 0%</div>
+              <div class="block-progress__label" id="blockProgressText">Прогрес: 0%</div>
               <div class="block-progress__count" id="blockProgressCount">0/0</div>
             </div>
             <div class="block-progress__bar">
@@ -72,15 +72,15 @@
             </div>
           </div>
 
-          <div class="panel__meta">Нажмите на урок, чтобы открыть видео</div>
+          <div class="panel__meta">Натисніть на урок, щоб відкрити відео</div>
         </div>
 
         <div id="lessonsBox" class="lesson-list"></div>
 
         <div id="lockedBox" class="locked-box" style="display:none;">
-          🔒 Доступ закрыт. Вернитесь на главную и купите блок.
+          🔒 Доступ закрито. Поверніться на головну та купіть блок.
           <div style="margin-top:12px;">
-            <a class="btn btn--primary" href="index.html#blocks">Купить блок</a>
+            <a class="btn btn--primary" href="index.html#blocks">Купити блок</a>
           </div>
         </div>
       </div>
@@ -94,13 +94,13 @@
     <button class="modal__close" id="doneClose" type="button">✕</button>
 
     <div class="modal__content">
-      <div class="modal__title">🎉 Блок завершён!</div>
+      <div class="modal__title">🎉 Блок завершено!</div>
       <div class="modal__desc">
-        Вы посмотрели все уроки этого блока. Отличная работа 💪
+        Ви переглянули всі уроки цього блоку. Чудова робота 💪
       </div>
 
       <div class="modal__actions">
-        <a class="btn btn--primary" href="index.html#blocks">К другим блокам</a>
+        <a class="btn btn--primary" href="index.html#blocks">До інших блоків</a>
         <button class="btn btn--ghost" id="doneOk" type="button">Ок</button>
       </div>
     </div>
