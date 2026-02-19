@@ -3,19 +3,19 @@
  *************************************************/
 
 const BLOCKS = [
-  { id: 'block-1', title: 'Блок 1', subtitle: 'Базовый уход', price: 499, img: 'img/block-1.jpg',
+  { id: 'block-1', title: 'Блок 1', subtitle: 'Назва', price: 499, img: 'img/block-1.jpg',
     desc: 'Опис                                                 ' },
-  { id: 'block-2', title: 'Блок 2', subtitle: 'Активы и сыворотки', price: 499, img: 'img/block-2.jpg',
+  { id: 'block-2', title: 'Блок 2', subtitle: 'Назва', price: 499, img: 'img/block-2.jpg',
     desc: 'Опис                                        ' },
-  { id: 'block-3', title: 'Блок 3', subtitle: 'Проблемная кожа', price: 499, img: 'img/block-3.jpg',
+  { id: 'block-3', title: 'Блок 3', subtitle: 'Назва', price: 499, img: 'img/block-3.jpg',
     desc: 'опис                                                        ' },
-  { id: 'block-4', title: 'Блок 4', subtitle: 'Anti-age', price: 499, img: 'img/block-4.jpg',
+  { id: 'block-4', title: 'Блок 4', subtitle: 'Назва', price: 499, img: 'img/block-4.jpg',
     desc: 'опис                                    ' },
-  { id: 'block-5', title: 'Блок 5', subtitle: 'Массажи лица', price: 499, img: 'img/block-5.jpg',
+  { id: 'block-5', title: 'Блок 5', subtitle: 'Назва', price: 499, img: 'img/block-5.jpg',
     desc: 'опис                                              ' },
-  { id: 'block-6', title: 'Блок 6', subtitle: 'Домашний уход', price: 499, img: 'img/block-6.jpg',
+  { id: 'block-6', title: 'Блок 6', subtitle: 'Назва', price: 499, img: 'img/block-6.jpg',
     desc: 'рпис                                                              ' },
-  { id: 'block-7', title: 'Блок 7', subtitle: 'Поддержка результата', price: 499, img: 'img/block-7.jpg',
+  { id: 'block-7', title: 'Блок 7', subtitle: 'Назва', price: 499, img: 'img/block-7.jpg',
     desc: 'опис                                                                      .' },
 ];
 
@@ -72,7 +72,7 @@ function renderTiles() {
           <div class="tile__subtitle">${b.subtitle}</div>
           <div class="tile__price">${b.price} грн</div>
           <div class="muted" style="font-size:12px;">
-            ${open ? '✅ Куплено. Нажми чтобы открыть' : '🔒 Нажми чтобы посмотреть и купить'}
+            ${open ? '✅ Куплено. Натисніть, щоб відкрити' : '🔒 Натисніть щоб подивитися та купити'}
           </div>
         </div>
       </div>
@@ -113,7 +113,7 @@ function openBlockModal(blockId) {
   modalDesc.textContent = block.desc;
   modalPrice.textContent = `${block.price} грн`;
 
-  modalBadge.textContent = isOpen ? 'Открыто' : 'Закрыто';
+  modalBadge.textContent = isOpen ? 'Відкрито' : 'Закрито';
   modalBadge.classList.toggle('open', isOpen);
 
   if (isOpen) {
@@ -208,7 +208,7 @@ function isValidEmail(v) {
 async function doLogin() {
   const email = (loginEmail?.value || '').trim().toLowerCase();
   if (!isValidEmail(email)) {
-    alert('Введите корректный email');
+    alert('Введіть правильний email');
     return;
   }
 
@@ -294,7 +294,7 @@ async function buyProduct(productId) {
     renderTiles();
 
     if (modalBadge) {
-      modalBadge.textContent = 'Открыто';
+      modalBadge.textContent = 'Відкрито';
       modalBadge.classList.add('open');
     }
     if (modalBuyBtn) modalBuyBtn.style.display = 'none';
