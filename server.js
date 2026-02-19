@@ -141,6 +141,11 @@ app.post('/api/admin/upload-video', upload.single('video'), async (req, res) => 
   }
 });
 
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+
 /* ================================
    SPA ROUTE
 ================================ */
