@@ -86,14 +86,14 @@ function setLockedState(text) {
   if (nextLessonBtn) nextLessonBtn.style.display = 'none';
 
   // reset block progress UI
-  if (blockProgressText) blockProgressText.textContent = 'Прогресс: —';
+  if (blockProgressText) blockProgressText.textContent = 'Прогрес: —';
   if (blockProgressCount) blockProgressCount.textContent = '';
   if (blockProgressBar) blockProgressBar.style.width = '0%';
 }
 
 function setOpenShell() {
-  if (blockSub) blockSub.textContent = 'Доступ открыт ✅';
-  if (lessonHint) lessonHint.textContent = 'Выберите урок справа. Прогресс сохраняется автоматически.';
+  if (blockSub) blockSub.textContent = 'Доступ відкритий ✅';
+  if (lessonHint) lessonHint.textContent = '';
 
   if (videoPlayer) videoPlayer.style.display = 'block';
   if (videoLocked) videoLocked.style.display = 'none';
