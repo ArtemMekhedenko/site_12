@@ -1,4 +1,3 @@
-const { Resend } = require('resend');
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
@@ -12,8 +11,6 @@ const PORT = process.env.PORT || 3000;
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
-const resend = new Resend(process.env.RESEND_API_KEY);
-const MAIL_FROM = process.env.MAIL_FROM || 'onboarding@resend.dev';
 
 
 /* ================================
@@ -318,49 +315,27 @@ app.get('/api/dev/grant', async (req, res) => {
 
 // 1) Запрос кода на email
 app.post('/api/auth/request-code', async (req, res) => {
-  const email = String(req.body?.email || '').trim().toLowerCase();
-  if (!email) return res.json({ ok:false, message:'Email required' });
+  const email = (req.body.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ ok:false, message:'email required' });
 
-  if (!process.env.RESEND_API_KEY) {
-    return res.json({ ok:false, message:'RESEND_API_KEY missing' });
-  }
+  const code = randomCode6();
+  const codeHash = sha256(code);
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 минут
 
-  const code = String(Math.floor(100000 + Math.random() * 900000)); // 6 цифр
-  const codeHash = require('crypto').createHash('sha256').update(code).digest('hex');
-  const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 минут
+  // очищаем старые коды этого email (чтобы был 1 актуальный)
+  await pool.query(`DELETE FROM login_codes WHERE email=$1`, [email]);
 
-  try {
-    // чистим старые коды
-    await pool.query(`DELETE FROM auth_codes WHERE email=$1`, [email]);
+  await pool.query(
+    `INSERT INTO login_codes(email, code_hash, expires_at)
+     VALUES($1,$2,$3)`,
+    [email, codeHash, expiresAt]
+  );
 
-    await pool.query(
-      `INSERT INTO auth_codes(email, code_hash, expires_at) VALUES($1,$2,$3)`,
-      [email, codeHash, expires]
-    );
+  // DEV режим: если нет email-сервиса — покажем код в логах
+  console.log(`🔐 LOGIN CODE for ${email}: ${code} (valid 5 min)`);
 
-    // отправка через Resend
-    await resend.emails.send({
-      from: MAIL_FROM,
-      to: email,
-      subject: 'Код входа в SkinBlocks',
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.5">
-          <h2>Код входа</h2>
-          <p>Ваш код:</p>
-          <div style="font-size:32px;font-weight:800;letter-spacing:6px">${code}</div>
-          <p style="color:#666">Действует 10 минут.</p>
-        </div>
-      `
-    });
-
-    // DEV-подсказка (можно удалить позже)
-    console.log('DEV OTP for', email, code);
-
-    return res.json({ ok:true });
-  } catch (e) {
-    console.error('RESEND ERROR:', e);
-    return res.json({ ok:false, message:'Failed to send code' });
-  }
+  // PROD режим: сюда позже подключим отправку письма через Resend/SMTP
+  return res.json({ ok:true });
 });
 
 // 2) Проверка кода, создание сессии
