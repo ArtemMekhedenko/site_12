@@ -5,13 +5,25 @@ const { Pool } = require('pg');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 
+const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
+
+// Resend (OTP email)
+let resend = null;
+try {
+  const { Resend } = require('resend');
+  if (process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+} catch (e) {
+  // если пакет не установлен — просто не падаем (DEV)
+  resend = null;
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const crypto = require('crypto');
-const cookieParser = require('cookie-parser');
 app.use(cookieParser());
-
 
 /* ================================
    DATABASE
@@ -42,9 +54,12 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const WFP_MERCHANT_ACCOUNT = process.env.WFP_MERCHANT_ACCOUNT || '';
 const WFP_SECRET_KEY = process.env.WFP_SECRET_KEY || '';
 // домен без https:// (например: site-12.onrender.com)
-const WFP_DOMAIN = (process.env.WFP_DOMAIN || '').replace(/^https?:\/\//,'').replace(/\/$/,'');
+const WFP_DOMAIN = (process.env.WFP_DOMAIN || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
 const WFP_CURRENCY = process.env.WFP_CURRENCY || 'UAH';
 
+// Resend config
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const RESEND_FROM = process.env.RESEND_FROM || 'onboarding@resend.dev';
 
 /* ================================
    MIDDLEWARE
@@ -94,13 +109,13 @@ async function initDb() {
   `);
 
   await pool.query(`
-  CREATE TABLE IF NOT EXISTS login_codes (
-    id SERIAL PRIMARY KEY,
-    email TEXT NOT NULL,
-    code_hash TEXT NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-  );
+    CREATE TABLE IF NOT EXISTS login_codes (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
 
   await pool.query(`
@@ -113,11 +128,25 @@ async function initDb() {
     );
   `);
 
+  // ВАЖНО: у тебя используется orders в оплате, но таблицы не было.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id SERIAL PRIMARY KEY,
+      order_ref TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL,
+      product_id TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      currency TEXT NOT NULL,
+      payment_status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   await pool.query(`CREATE INDEX IF NOT EXISTS login_codes_email_idx ON login_codes(email);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS sessions_email_idx ON sessions(email);`);
-
-
-
+  await pool.query(`CREATE INDEX IF NOT EXISTS purchases_email_idx ON purchases(email);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS orders_email_idx ON orders(email);`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS orders_ref_idx ON orders(order_ref);`);
 
   console.log('✅ DB initialized');
 
@@ -167,12 +196,40 @@ function randomCode6() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+/* ================================
+   EMAIL (RESEND)
+================================ */
+async function sendLoginCodeEmail(email, code) {
+  // Если Resend не настроен — не падаем, просто возвращаем false
+  if (!RESEND_API_KEY || !RESEND_FROM || !resend) return false;
+
+  try {
+    const result = await resend.emails.send({
+      from: RESEND_FROM,
+      to: email,
+      subject: 'Your SkinBlocks login code',
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.5">
+          <h2>Login code</h2>
+          <p>Your code:</p>
+          <p style="font-size:28px;font-weight:700;letter-spacing:2px">${code}</p>
+          <p>This code is valid for <b>5 minutes</b>.</p>
+        </div>
+      `
+    });
+
+    console.log('✅ Resend sent:', result?.id || result);
+    return true;
+  } catch (e) {
+    console.error('❌ Resend error:', e?.message || e);
+    return false;
+  }
+}
 
 /* ================================
-   BUY (DEV)
+   BUY (DEV + WayForPay later)
 ================================ */
 app.post('/api/payment/create', async (req, res) => {
-  // user from cookie session
   const token = req.cookies.session;
   if (!token) return res.json({ status: 'error', message: 'Not logged in' });
 
@@ -213,7 +270,6 @@ app.post('/api/payment/create', async (req, res) => {
   const amount = Number(req.body.amount || 0) || 499; // fallback price
   const currency = WFP_CURRENCY;
 
-  // orderRef must be unique
   const orderRef = `SB-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
   const orderDate = Math.floor(Date.now() / 1000);
 
@@ -228,8 +284,6 @@ app.post('/api/payment/create', async (req, res) => {
     return res.json({ status: 'error', message: 'Could not create order' });
   }
 
-  // signature (HMAC_MD5) - fields separated by ";"
-  // merchantAccount; merchantDomainName; orderReference; orderDate; amount; currency; productName...; productCount...; productPrice...
   function hmacMd5(str, key) {
     return crypto.createHmac('md5', key).update(str, 'utf8').digest('hex');
   }
@@ -254,8 +308,6 @@ app.post('/api/payment/create', async (req, res) => {
   const returnUrl = `https://${WFP_DOMAIN}/payment-success.html?orderRef=${encodeURIComponent(orderRef)}`;
   const serviceUrl = `https://${WFP_DOMAIN}/api/pay/wayforpay/webhook`;
 
-  // Purchase (redirect user to WayForPay checkout)
-  // https://secure.wayforpay.com/pay  (form POST)
   const fields = {
     merchantAccount: WFP_MERCHANT_ACCOUNT,
     merchantDomainName: WFP_DOMAIN,
@@ -286,7 +338,7 @@ app.post('/api/payment/create', async (req, res) => {
 ================================ */
 app.get('/api/access', async (req, res) => {
   const token = req.cookies.session;
-  if (!token) return res.json({ status:'ok', allowed: [] });
+  if (!token) return res.json({ status: 'ok', allowed: [] });
 
   const tokenHash = sha256(token);
 
@@ -295,15 +347,14 @@ app.get('/api/access', async (req, res) => {
     [tokenHash]
   );
 
-  if (s.rows.length === 0) return res.json({ status:'ok', allowed: [] });
-  if (new Date(s.rows[0].expires_at).getTime() < Date.now()) return res.json({ status:'ok', allowed: [] });
+  if (s.rows.length === 0) return res.json({ status: 'ok', allowed: [] });
+  if (new Date(s.rows[0].expires_at).getTime() < Date.now()) return res.json({ status: 'ok', allowed: [] });
 
   const email = s.rows[0].email;
 
   const r = await pool.query(`SELECT block_id FROM purchases WHERE email=$1`, [email]);
-  return res.json({ status:'ok', allowed: r.rows.map(x => x.block_id) });
+  return res.json({ status: 'ok', allowed: r.rows.map(x => x.block_id) });
 });
-
 
 /* ================================
    GET LESSONS
@@ -330,7 +381,6 @@ app.get('/api/lessons', async (req, res) => {
 
 /* ================================
    ADMIN VIDEO UPLOAD (Cloudinary)
-   Важно: поле файла = "file" (как в admin.html)
 ================================ */
 app.post('/api/admin/upload-video', upload.single('file'), async (req, res) => {
   try {
@@ -347,7 +397,6 @@ app.post('/api/admin/upload-video', upload.single('file'), async (req, res) => {
       return res.status(400).json({ ok: false, message: 'blockId, position and file required' });
     }
 
-    // upload to cloudinary
     const uploadResult = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
@@ -363,7 +412,6 @@ app.post('/api/admin/upload-video', upload.single('file'), async (req, res) => {
 
     const videoUrl = uploadResult.secure_url;
 
-    // upsert in DB
     await pool.query(
       `INSERT INTO lessons(block_id, title, video_url, position)
        VALUES($1,$2,$3,$4)
@@ -384,7 +432,6 @@ app.post('/api/admin/upload-video', upload.single('file'), async (req, res) => {
 
 /* ================================
    DEV: открыть доступ к блоку
-   /api/dev/grant?email=test@gmail.com&blockId=block-1
 ================================ */
 app.get('/api/dev/grant', async (req, res) => {
   const email = (req.query.email || '').trim().toLowerCase();
@@ -406,10 +453,14 @@ app.get('/api/dev/grant', async (req, res) => {
   }
 });
 
+/* ================================
+   AUTH: OTP
+================================ */
+
 // 1) Запрос кода на email
 app.post('/api/auth/request-code', async (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
-  if (!email) return res.status(400).json({ ok:false, message:'email required' });
+  if (!email) return res.status(400).json({ ok: false, message: 'email required' });
 
   const code = randomCode6();
   const codeHash = sha256(code);
@@ -424,39 +475,41 @@ app.post('/api/auth/request-code', async (req, res) => {
     [email, codeHash, expiresAt]
   );
 
-  // DEV режим: если нет email-сервиса — покажем код в логах
-  console.log(`🔐 LOGIN CODE for ${email}: ${code} (valid 5 min)`);
+  // Пытаемся отправить на email через Resend
+  const sent = await sendLoginCodeEmail(email, code);
 
-  // PROD режим: сюда позже подключим отправку письма через Resend/SMTP
-  return res.json({ ok:true });
+  // Если не отправили — хотя бы покажем в логах (DEV fallback)
+  if (!sent) {
+    console.log(`🔐 LOGIN CODE for ${email}: ${code} (valid 5 min)`);
+  }
+
+  return res.json({ ok: true, sent });
 });
 
 // 2) Проверка кода, создание сессии
 app.post('/api/auth/verify-code', async (req, res) => {
   const email = (req.body.email || '').trim().toLowerCase();
   const code = (req.body.code || '').trim();
-  if (!email || !code) return res.status(400).json({ ok:false, message:'email and code required' });
+  if (!email || !code) return res.status(400).json({ ok: false, message: 'email and code required' });
 
   const r = await pool.query(
     `SELECT code_hash, expires_at FROM login_codes WHERE email=$1 LIMIT 1`,
     [email]
   );
 
-  if (r.rows.length === 0) return res.status(400).json({ ok:false, message:'code not found' });
+  if (r.rows.length === 0) return res.status(400).json({ ok: false, message: 'code not found' });
 
   const row = r.rows[0];
   if (new Date(row.expires_at).getTime() < Date.now()) {
-    return res.status(400).json({ ok:false, message:'code expired' });
+    return res.status(400).json({ ok: false, message: 'code expired' });
   }
 
   if (sha256(code) !== row.code_hash) {
-    return res.status(400).json({ ok:false, message:'wrong code' });
+    return res.status(400).json({ ok: false, message: 'wrong code' });
   }
 
-  // код одноразовый
   await pool.query(`DELETE FROM login_codes WHERE email=$1`, [email]);
 
-  // создаём сессию (30 дней)
   const token = randomToken();
   const tokenHash = sha256(token);
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -467,7 +520,6 @@ app.post('/api/auth/verify-code', async (req, res) => {
     [email, tokenHash, expiresAt]
   );
 
-  // httpOnly cookie (JS не сможет её прочитать → безопаснее)
   res.cookie('session', token, {
     httpOnly: true,
     sameSite: 'lax',
@@ -475,13 +527,13 @@ app.post('/api/auth/verify-code', async (req, res) => {
     maxAge: 30 * 24 * 60 * 60 * 1000
   });
 
-  return res.json({ ok:true });
+  return res.json({ ok: true });
 });
 
 // 3) Кто я
 app.get('/api/me', async (req, res) => {
   const token = req.cookies.session;
-  if (!token) return res.json({ ok:true, email:null });
+  if (!token) return res.json({ ok: true, email: null });
 
   const tokenHash = sha256(token);
   const r = await pool.query(
@@ -489,10 +541,10 @@ app.get('/api/me', async (req, res) => {
     [tokenHash]
   );
 
-  if (r.rows.length === 0) return res.json({ ok:true, email:null });
-  if (new Date(r.rows[0].expires_at).getTime() < Date.now()) return res.json({ ok:true, email:null });
+  if (r.rows.length === 0) return res.json({ ok: true, email: null });
+  if (new Date(r.rows[0].expires_at).getTime() < Date.now()) return res.json({ ok: true, email: null });
 
-  return res.json({ ok:true, email: r.rows[0].email });
+  return res.json({ ok: true, email: r.rows[0].email });
 });
 
 // 4) Выход
@@ -502,9 +554,8 @@ app.post('/api/auth/logout', async (req, res) => {
     await pool.query(`DELETE FROM sessions WHERE token_hash=$1`, [sha256(token)]);
   }
   res.clearCookie('session');
-  res.json({ ok:true });
+  res.json({ ok: true });
 });
-
 
 /* ================================
    SPA ROUTE
@@ -524,5 +575,3 @@ initDb()
     console.error('❌ DB init failed:', e);
     process.exit(1);
   });
-
-  
