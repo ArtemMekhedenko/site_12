@@ -3,13 +3,13 @@
  *************************************************/
 
 const BLOCKS = [
-  { id: 'block-1', title: '', subtitle: 'Лоб', price: 499, img: 'img/block-1.jpg',
+  { id: 'block-1', title: 'Лоб', subtitle: '', price: 499, img: 'img/block-1.jpg',
     desc: 'Опис' },
-  { id: 'block-2', title: '', subtitle: 'Очі', price: 499, img: 'img/block-2.jpg',
+  { id: 'block-2', title: 'Очі', subtitle: '', price: 499, img: 'img/block-2.jpg',
     desc: 'Опис' },
-  { id: 'block-3', title: '', subtitle: 'Назва', price: 499, img: 'img/block-3.jpg',
+  { id: 'block-3', title: 'Уентральна частина обличчя та носогубка', subtitle: 'Назва', price: 499, img: 'img/block-3.jpg',
     desc: 'Опис' },
-  { id: 'block-4', title: '', subtitle: 'Назва', price: 499, img: 'img/block-4.jpg',
+  { id: 'block-4', title: 'Антібрилі', subtitle: 'Назва', price: 499, img: 'img/block-4.jpg',
     desc: 'Опис' },
   { id: 'block-5', title: '', subtitle: 'Назва', price: 499, img: 'img/block-5.jpg',
     desc: 'Опис' },
