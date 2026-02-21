@@ -156,7 +156,12 @@ async function checkAccess() {
   const res = await fetch('/api/access', { credentials: 'include' });
   const data = await res.json();
   if (data.status !== 'ok') return false;
-  return (data.allowed || []).includes(blockId);
+    const allowed = (data.allowed || []);
+  if (allowed.includes(blockId)) return true;
+  // allow full course purchase: course-1-block-2 -> course-1-full
+  const m = String(blockId || '').match(/^(course-\d+)-block-\d+$/);
+  if (m && allowed.includes(`${m[1]}-full`)) return true;
+  return false;
 }
 
 async function buyThisBlock() {

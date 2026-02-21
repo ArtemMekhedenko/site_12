@@ -1,23 +1,21 @@
 require('dotenv').config();
-
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { Resend } = require('resend');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
-
-// Resend (email delivery) — используем для отправки OTP кода
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const RESEND_FROM = process.env.RESEND_FROM || 'Acme <onboarding@resend.dev>'; // заменишь на свой verified sender
 
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 app.use(cookieParser());
+
+const { CATALOG, makeBlockId, makeFullId } = require('./catalog');
+
 
 
 /* ================================
@@ -45,6 +43,13 @@ cloudinary.config({
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
+// WayForPay
+const WFP_MERCHANT_ACCOUNT = process.env.WFP_MERCHANT_ACCOUNT || '';
+const WFP_SECRET_KEY = process.env.WFP_SECRET_KEY || '';
+const WFP_DOMAIN = process.env.WFP_DOMAIN || process.env.RENDER_EXTERNAL_HOSTNAME || '';
+const WFP_API_URL = 'https://api.wayforpay.com/api';
+const WFP_CURRENCY = process.env.WFP_CURRENCY || 'UAH';
+
 /* ================================
    MIDDLEWARE
 ================================ */
@@ -69,6 +74,21 @@ async function initDb() {
       UNIQUE(email, block_id)
     );
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id SERIAL PRIMARY KEY,
+      order_reference TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      amount NUMERIC(12,2) NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'UAH',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      paid_at TIMESTAMPTZ
+    );
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS orders_email_idx ON orders(email);`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS lessons (
@@ -123,17 +143,25 @@ async function initDb() {
 }
 
 async function seedLessonsIfMissing() {
-  const blocks = 7;
+  // Seed lessons for blocks from catalog so /block.html works out-of-the-box.
   const perBlock = 5;
 
-  for (let i = 1; i <= blocks; i++) {
-    const blockId = `block-${i}`;
+  const blockIds = [];
+  for (const courseId of Object.keys(CATALOG)) {
+    const blocks = (CATALOG[courseId]?.blocks || []);
+    for (const b of blocks) {
+      blockIds.push(makeBlockId(courseId, b.id));
+    }
+  }
 
+  // fallback legacy blocks (block-1..block-7)
+  for (let i = 1; i <= 7; i++) blockIds.push(`block-${i}`);
+
+  for (const blockId of blockIds) {
     const exists = await pool.query(
       `SELECT 1 FROM lessons WHERE block_id=$1 LIMIT 1`,
       [blockId]
     );
-
     if (exists.rows.length > 0) continue;
 
     for (let p = 1; p <= perBlock; p++) {
@@ -143,10 +171,10 @@ async function seedLessonsIfMissing() {
         [blockId, `Урок ${p}`, '', p]
       );
     }
-
     console.log(`🎬 Seeded ${blockId} (${perBlock} lessons)`);
   }
 }
+
 
 /* ================================
    ADMIN PAGE
@@ -158,40 +186,218 @@ app.get('/admin', (req, res) => {
 function sha256(s) {
   return crypto.createHash('sha256').update(s).digest('hex');
 }
-
-async function sendLoginCodeEmail(email, code) {
-  if (!resend) {
-    // Если RESEND_API_KEY не задан — просто не отправляем письмо (DEV режим)
-    console.log(`✉️ Resend disabled (RESEND_API_KEY missing). OTP for ${email}: ${code}`);
-    return;
-  }
-
-  const html = `
-    <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.4">
-      <h2 style="margin:0 0 12px 0">Код входа</h2>
-      <p style="margin:0 0 12px 0">Твой код подтверждения:</p>
-      <div style="font-size:28px;letter-spacing:6px;font-weight:700;margin:12px 0">${code}</div>
-      <p style="margin:16px 0 0 0;color:#555">Код действителен 5 минут. Если это не ты — просто проигнорируй письмо.</p>
-    </div>
-  `;
-
-  const { data, error } = await resend.emails.send({
-    from: RESEND_FROM,
-    to: [email],
-    subject: 'Your login code',
-    html
-  });
-
-  if (error) throw error;
-  return data;
-}
-
 function randomToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 function randomCode6() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
+
+
+
+/* ================================
+   CATALOG
+================================ */
+app.get('/api/catalog', (req, res) => {
+  return res.json({ ok: true, catalog: CATALOG });
+});
+
+
+/* ================================
+   PAYMENTS (WayForPay)
+================================ */
+function hmacMd5Hex(message, secret) {
+  return crypto.createHmac('md5', secret).update(message, 'utf8').digest('hex');
+}
+
+function getHost(req) {
+  // prefer explicit WFP_DOMAIN; else take request host
+  const h = (WFP_DOMAIN || req.get('host') || '').toString().replace(/^https?:\/\//, '');
+  return h;
+}
+
+function priceForItemId(itemId) {
+  // itemId could be: course-1-full OR course-1-block-2
+  const mFull = String(itemId).match(/^(course-\d+)-full$/);
+  if (mFull) {
+    const courseId = mFull[1];
+    const course = CATALOG[courseId];
+    if (!course) return null;
+    return { title: course.title, amount: Number(course.fullPrice || 0) };
+  }
+  const mBlock = String(itemId).match(/^(course-\d+)-block-(\d+)$/);
+  if (mBlock) {
+    const courseId = mBlock[1];
+    const num = Number(mBlock[2]);
+    const course = CATALOG[courseId];
+    const blk = (course?.blocks || []).find(x => Number(x.id) === num);
+    if (!course || !blk) return null;
+    return { title: `${course.title}: ${blk.title}`, amount: Number(blk.price || 0) };
+  }
+  return null;
+}
+
+// Create invoice and return invoiceUrl (client redirects there)
+app.post('/api/pay/wayforpay/create-invoice', async (req, res) => {
+  const token = req.cookies.session;
+  if (!token) return res.status(401).json({ ok:false, message:'not authorized' });
+
+  const tokenHash = sha256(token);
+  const s = await pool.query(
+    `SELECT email, expires_at FROM sessions WHERE token_hash=$1 LIMIT 1`,
+    [tokenHash]
+  );
+  if (s.rows.length === 0) return res.status(401).json({ ok:false, message:'session not found' });
+  if (new Date(s.rows[0].expires_at).getTime() < Date.now()) return res.status(401).json({ ok:false, message:'session expired' });
+
+  if (!WFP_MERCHANT_ACCOUNT || !WFP_SECRET_KEY) {
+    return res.status(500).json({ ok:false, message:'WayForPay keys missing (WFP_MERCHANT_ACCOUNT / WFP_SECRET_KEY)' });
+  }
+
+  const email = s.rows[0].email;
+  const itemId = (req.body.itemId || '').trim();
+  const info = priceForItemId(itemId);
+  if (!itemId || !info || !info.amount) return res.status(400).json({ ok:false, message:'bad itemId' });
+
+  const amount = Number(info.amount).toFixed(2);
+  const currency = WFP_CURRENCY;
+  const orderReference = `SB-${Date.now()}-${Math.random().toString(16).slice(2,8)}`;
+  const orderDate = Math.floor(Date.now()/1000);
+
+  const domain = getHost(req);
+  const serviceUrl = `${req.protocol}://${req.get('host')}/api/pay/wayforpay/webhook`;
+
+  // signature: merchantAccount;merchantDomainName;orderReference;orderDate;amount;currency;productName[0];productCount[0];productPrice[0]
+  // as per WayForPay docs
+  const productName = [info.title];
+  const productCount = [1];
+  const productPrice = [Number(amount)];
+
+  const signStr = [
+    WFP_MERCHANT_ACCOUNT,
+    domain,
+    orderReference,
+    orderDate,
+    amount,
+    currency,
+    ...productName,
+    ...productCount,
+    ...productPrice
+  ].join(';');
+
+  const merchantSignature = hmacMd5Hex(signStr, WFP_SECRET_KEY);
+
+  const payload = {
+    transactionType: 'CREATE_INVOICE',
+    merchantAccount: WFP_MERCHANT_ACCOUNT,
+    merchantAuthType: 'SimpleSignature',
+    merchantDomainName: domain,
+    merchantSignature,
+    apiVersion: 1,
+    language: 'UA',
+    serviceUrl,
+    orderReference,
+    orderDate,
+    amount: Number(amount),
+    currency,
+    productName,
+    productPrice,
+    productCount,
+    clientEmail: email
+  };
+
+  try {
+    await pool.query(
+      `INSERT INTO orders(order_reference, email, item_id, amount, currency, status)
+       VALUES($1,$2,$3,$4,$5,'pending')
+       ON CONFLICT (order_reference) DO NOTHING`,
+      [orderReference, email, itemId, amount, currency]
+    );
+
+    // Node 18+ has global fetch. If not, fail clearly.
+    if (typeof fetch !== 'function') {
+      return res.status(500).json({ ok:false, message:'Node fetch is not available. Use Node 18+ on Render.' });
+    }
+
+    const r = await fetch(WFP_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await r.json().catch(() => null);
+
+    if (!data || !data.invoiceUrl) {
+      console.error('WayForPay bad response:', data);
+      return res.status(500).json({ ok:false, message:'WayForPay error', details: data });
+    }
+
+    return res.json({ ok:true, invoiceUrl: data.invoiceUrl, orderReference });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ ok:false, message:'create invoice failed' });
+  }
+});
+
+// WayForPay webhook (serviceUrl)
+app.post('/api/pay/wayforpay/webhook', bodyParser.json({ type: '*/*' }), async (req, res) => {
+  const p = req.body || {};
+
+  try {
+    // verify signature:
+    // merchantAccount;orderReference;amount;currency;authCode;cardPan;transactionStatus;reasonCode
+    const signStr = [
+      p.merchantAccount,
+      p.orderReference,
+      p.amount,
+      p.currency,
+      p.authCode,
+      p.cardPan,
+      p.transactionStatus,
+      p.reasonCode
+    ].join(';');
+
+    const expected = hmacMd5Hex(signStr, WFP_SECRET_KEY);
+    if (!p.merchantSignature || expected !== p.merchantSignature) {
+      console.warn('WayForPay signature mismatch', { expected, got: p.merchantSignature });
+      return res.status(400).json({ ok:false });
+    }
+
+    // Update order status
+    const orderRef = p.orderReference;
+    const status = String(p.transactionStatus || '').toLowerCase(); // approved/declined/...
+    const isApproved = String(p.transactionStatus).toLowerCase() === 'approved';
+
+    const ord = await pool.query(`SELECT email, item_id, status FROM orders WHERE order_reference=$1 LIMIT 1`, [orderRef]);
+    if (ord.rows.length) {
+      await pool.query(
+        `UPDATE orders SET status=$1, paid_at=CASE WHEN $2 THEN NOW() ELSE paid_at END WHERE order_reference=$3`,
+        [status, isApproved, orderRef]
+      );
+
+      if (isApproved) {
+        const email = ord.rows[0].email;
+        const itemId = ord.rows[0].item_id;
+        await pool.query(
+          `INSERT INTO purchases(email, block_id)
+           VALUES($1,$2)
+           ON CONFLICT (email, block_id) DO NOTHING`,
+          [email, itemId]
+        );
+      }
+    }
+
+    // respond with accept signature: orderReference;status;time
+    const time = Math.floor(Date.now()/1000);
+    const respStatus = 'accept';
+    const respSign = hmacMd5Hex([orderRef, respStatus, time].join(';'), WFP_SECRET_KEY);
+
+    return res.json({ orderReference: orderRef, status: respStatus, time, signature: respSign });
+  } catch (e) {
+    console.error('webhook error', e);
+    return res.status(500).json({ ok:false });
+  }
+});
 
 
 /* ================================
@@ -366,13 +572,10 @@ app.post('/api/auth/request-code', async (req, res) => {
     [email, codeHash, expiresAt]
   );
 
-  // отправка письма (Resend). Если RESEND_API_KEY не задан — код просто выведется в логах (DEV режим)
-  try {
-    await sendLoginCodeEmail(email, code);
-  } catch (e) {
-    console.error('❌ Failed to send OTP email:', e);
-    return res.status(500).json({ ok:false, message:'failed to send email' });
-  }
+  // DEV режим: если нет email-сервиса — покажем код в логах
+  console.log(`🔐 LOGIN CODE for ${email}: ${code} (valid 5 min)`);
+
+  // PROD режим: сюда позже подключим отправку письма через Resend/SMTP
   return res.json({ ok:true });
 });
 

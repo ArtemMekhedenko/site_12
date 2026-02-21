@@ -62,7 +62,7 @@ async function checkAlreadyLoggedIn() {
     const r = await fetch('/api/me', { credentials: 'include' });
     const data = await r.json();
     if (data?.ok && data.email) {
-      window.location.href = 'index.html';
+      window.location.href = 'dashboard.html';
     }
   } catch (_) {}
 }
@@ -122,7 +122,7 @@ async function verifyCode(email, code) {
     }
 
     setHint('Готово! Вхід виконано ✅', 'ok');
-    window.location.href = 'index.html';
+    window.location.href = 'dashboard.html';
     return true;
   } catch (e) {
     setHint('Помилка з’єднання з сервером.', 'err');
