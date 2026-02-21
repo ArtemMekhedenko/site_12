@@ -1,12 +1,19 @@
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
+const { Resend } = require('resend');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Resend (email delivery) — используем для отправки OTP кода
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const RESEND_FROM = process.env.RESEND_FROM || 'Acme <onboarding@resend.dev>'; // заменишь на свой verified sender
 
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
@@ -151,6 +158,34 @@ app.get('/admin', (req, res) => {
 function sha256(s) {
   return crypto.createHash('sha256').update(s).digest('hex');
 }
+
+async function sendLoginCodeEmail(email, code) {
+  if (!resend) {
+    // Если RESEND_API_KEY не задан — просто не отправляем письмо (DEV режим)
+    console.log(`✉️ Resend disabled (RESEND_API_KEY missing). OTP for ${email}: ${code}`);
+    return;
+  }
+
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.4">
+      <h2 style="margin:0 0 12px 0">Код входа</h2>
+      <p style="margin:0 0 12px 0">Твой код подтверждения:</p>
+      <div style="font-size:28px;letter-spacing:6px;font-weight:700;margin:12px 0">${code}</div>
+      <p style="margin:16px 0 0 0;color:#555">Код действителен 5 минут. Если это не ты — просто проигнорируй письмо.</p>
+    </div>
+  `;
+
+  const { data, error } = await resend.emails.send({
+    from: RESEND_FROM,
+    to: [email],
+    subject: 'Your login code',
+    html
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 function randomToken() {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -331,10 +366,13 @@ app.post('/api/auth/request-code', async (req, res) => {
     [email, codeHash, expiresAt]
   );
 
-  // DEV режим: если нет email-сервиса — покажем код в логах
-  console.log(`🔐 LOGIN CODE for ${email}: ${code} (valid 5 min)`);
-
-  // PROD режим: сюда позже подключим отправку письма через Resend/SMTP
+  // отправка письма (Resend). Если RESEND_API_KEY не задан — код просто выведется в логах (DEV режим)
+  try {
+    await sendLoginCodeEmail(email, code);
+  } catch (e) {
+    console.error('❌ Failed to send OTP email:', e);
+    return res.status(500).json({ ok:false, message:'failed to send email' });
+  }
   return res.json({ ok:true });
 });
 
