@@ -156,12 +156,7 @@ async function checkAccess() {
   const res = await fetch('/api/access', { credentials: 'include' });
   const data = await res.json();
   if (data.status !== 'ok') return false;
-    const allowed = (data.allowed || []);
-  if (allowed.includes(blockId)) return true;
-  // allow full course purchase: course-1-block-2 -> course-1-full
-  const m = String(blockId || '').match(/^(course-\d+)-block-\d+$/);
-  if (m && allowed.includes(`${m[1]}-full`)) return true;
-  return false;
+  return (data.allowed || []).includes(blockId);
 }
 
 async function buyThisBlock() {
@@ -186,7 +181,37 @@ async function buyThisBlock() {
       return;
     }
 
-    // ✅ моментально повторно проверяем доступ и перерисовываем
+if (data.mode === 'wayforpay' && data.payUrl && data.fields) {
+  const f = document.createElement('form');
+  f.method = 'POST';
+  f.action = data.payUrl;
+  f.style.display = 'none';
+
+  for (const [k, v] of Object.entries(data.fields)) {
+    if (Array.isArray(v)) {
+      v.forEach((item, idx) => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = `${k}[${idx}]`;
+        inp.value = String(item);
+        f.appendChild(inp);
+      });
+    } else {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = k;
+      inp.value = String(v);
+      f.appendChild(inp);
+    }
+  }
+
+  document.body.appendChild(f);
+  f.submit();
+  return;
+}
+
+// ✅ моментально повторно проверяем доступ и перерисовываем
+
     const allowed = await checkAccess();
     if (!allowed) {
       // на случай задержки БД — подождём 400мс и попробуем ещё раз

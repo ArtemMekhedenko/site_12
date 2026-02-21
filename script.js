@@ -274,8 +274,39 @@ async function buyProduct(productId) {
       modalOpenBtn.href = `block.html?bid=${encodeURIComponent(productId)}`;
     }
 
-    // переход на блок
-    window.location.href = data.redirectUrl || `block.html?bid=${encodeURIComponent(productId)}`;
+    if (data.mode === 'wayforpay' && data.payUrl && data.fields) {
+  // отправляем пользователя на оплату (POST form)
+  const f = document.createElement('form');
+  f.method = 'POST';
+  f.action = data.payUrl;
+  f.style.display = 'none';
+
+  // WayForPay принимает массивы productName/productPrice/productCount
+  for (const [k, v] of Object.entries(data.fields)) {
+    if (Array.isArray(v)) {
+      v.forEach((item, idx) => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = `${k}[${idx}]`;
+        inp.value = String(item);
+        f.appendChild(inp);
+      });
+    } else {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = k;
+      inp.value = String(v);
+      f.appendChild(inp);
+    }
+  }
+
+  document.body.appendChild(f);
+  f.submit();
+  return;
+}
+
+// dev fallback: сразу на блок
+window.location.href = data.redirectUrl || `block.html?bid=${encodeURIComponent(productId)}`;
 
   } catch (err) {
     console.error('BUY ERROR', err);
