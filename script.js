@@ -7,7 +7,7 @@ const BLOCKS = [
     desc: 'Опис' },
   { id: 'block-2', title: 'Очі', subtitle: '', price: 499, img: 'img/block-2.jpg',
     desc: 'Опис' },
-  { id: 'block-3', title: 'Уентральна частина обличчя та носогубка', subtitle: 'Назва', price: 499, img: 'img/block-3.jpg',
+  { id: 'block-3', title: 'Уентральна частина обличчя та носогубка', subtitle: '', price: 499, img: 'img/block-3.jpg',
     desc: 'Опис' },
   { id: 'block-4', title: 'Антібрилі', subtitle: 'Назва', price: 499, img: 'img/block-4.jpg',
     desc: 'Опис' },
