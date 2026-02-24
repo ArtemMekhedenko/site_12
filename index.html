@@ -1,295 +1,139 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Назва</title>
+  <title>Face Fitness від Тетяни</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header class="topbar" id="top">
   <div class="container topbar__inner">
-    <a class="brand" href="#top">Назва</a>
+    <a class="brand" href="#top">Face Fitness</a>
 
     <nav class="nav nav--desktop">
-      <a class="nav__link" href="#welcome">Привітання</a>
+      <a class="nav__link" href="#about">Методика</a>
+      <a class="nav__link" href="#trust">Довіра</a>
+      <a class="nav__link" href="#reviews">Відгуки</a>
       <a class="nav__link" href="#blocks">Блоки</a>
-      <a class="nav__link" href="#faq">FAQ</a>
-      <a class="nav__link" href="#before-after">Результати</a>
       <a class="nav__link" href="#contacts">Контакти</a>
     </nav>
 
     <div class="topbar__actions">
       <button class="btn btn--ghost" id="loginBtn" type="button">Увійти</button>
       <button class="btn btn--ghost" id="logoutBtn" type="button" style="display:none;">Вийти</button>
-
-      <button class="burger" id="burgerBtn" type="button" aria-label="Открыть меню">
-        <span></span><span></span><span></span>
-      </button>
     </div>
-  </div>
-
-  <!-- mobile menu -->
-  <div class="mnav" id="mobileMenu">
-    <a class="mnav__link" href="#welcome">Привітання</a>
-    <a class="mnav__link" href="#blocks">Блоки</a>
-    <a class="mnav__link" href="#faq">FAQ</a>
-    <a class="mnav__link" href="#before-after">Результати</a>
-    <a class="mnav__link" href="#contacts">Контакти</a>
   </div>
 </header>
 
-<div class="mnav-overlay" id="menuOverlay"></div>
-
 <main>
-  <!-- HERO -->
-  <section class="hero" id="welcome">
-    <div class="container hero__grid">
-      <div class="hero__text">
-        <div class="pill">Тренировки • Догляд • Результат</div>
-        <h1 class="hero__title">
-        Авторська система Face Fitness від Тетяни
-        </h1>
 
-        <p class="hero__sub">
+<!-- HERO -->
+<section class="hero" id="welcome">
+  <div class="container hero__grid">
+    <div>
+      <h1 class="hero__title">
+        Авторська система Face Fitness від Тетяни
+      </h1>
+
+      <p class="hero__sub">
         8 років практики, живі групи та реальні результати без уколів та операцій.
         Мої учениці приходять за природним омолодженням і залишаються надовго.
         Це системний підхід до обличчя, постави та м'язів – а не разові вправи.
-        </p>
+      </p>
 
-        <div class="hero__cta">
-          <a class="btn btn--primary" href="#blocks">Вибрать блок</a>
-          <a class="btn btn--ghost" href="#faq">Як це працює</a>
-        </div>
-
-        <div class="hero__mini">
-          <div class="mini">🌿 Природне омолодження</div>
-          <div class="mini">✨ Гармонія обличчя та тіла</div>
-          <div class="mini">🖤 Без ін'єкцій та операцій</div> 
-        </div>
-      </div>
-
-      <div class="hero__media">
-        <div class="card card--video">
-          <div class="card__head">
-            <div class="card__title"></div>
-          </div>
-          <div class="card__body">
-            <video controls autoplay muted loop style="width:100%; border-radius:16px;">
-              <source src="https://res.cloudinary.com/dylsoxbbo/video/upload/v1771509627/skinblocks/block-9-lesson-1.mp4" type="video/mp4">
-            </video>
-          </div>
-        </div>
+      <div class="hero__cta">
+        <a class="btn btn--primary" href="#blocks">Хочу результат</a>
       </div>
     </div>
-  </section>
 
-  <!-- BLOCKS -->
-  <section class="section" id="blocks">
-    <div class="container">
-      <div class="section__head">
-        <h2 class="section__title">Програма Face Fitness</h2>
-        <p class="section__desc"></p>
-      </div>
-
-      <!-- ВАЖНО: контейнер для карточек -->
-      <div class="tiles-grid" id="tilesGrid"></div>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-  <section class="section section--soft" id="faq">
-    <div class="container">
-      <div class="section__head">
-        <h2 class="section__title">FAQ</h2>
-        <p class="section__desc">Коротко та по справі</p>
-      </div>
-
-      <div class="faq">
-        <div class="faq__item">
-          <button class="faq__q" type="button">питання</button>
-          <div class="faq__a">
-            відповідь
-          </div>
-        </div>
-
-        <div class="faq__item">
-          <button class="faq__q" type="button">питання</button>
-          <div class="faq__a">
-            відповідь
-          </div>
-        </div>
-
-        <div class="faq__item">
-          <button class="faq__q" type="button">питання</button>
-          <div class="faq__a">
-            відповідь
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- RESULTS -->
-  <section class="section" id="before-after">
-    <div class="container">
-      <div class="section__head">
-        <h2 class="section__title">Результати</h2>
-        <p class="section__desc"></p>
-      </div>
-
-      <div class="gallery" id="resultsGallery">
-        <button class="gcard" type="button"><img src="img/before1.jpg" alt="Фото 1"></button>
-        <button class="gcard" type="button"><img src="img/after1.jpg" alt="Фото 2"></button>
-        <button class="gcard" type="button"><img src="img/before2.jpg" alt="Фото 3"></button>
-        <button class="gcard" type="button"><img src="img/after2.jpg" alt="Фото 4"></button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Zoom overlay -->
-  <div class="zoom-overlay" id="zoomOverlay" aria-hidden="true">
-    <div class="zoom-inner">
-      <img id="zoomImg" src="" alt="">
+    <div>
+      <img src="img/tanya.jpg" alt="Тетяна" style="width:100%; border-radius:20px; filter:grayscale(100%); border:4px solid #9ef0d0;">
     </div>
   </div>
+</section>
 
-  <!-- CONTACTS -->
-  <section class="section section--soft" id="contacts">
-    <div class="container">
-      <div class="section__head">
-        <h2 class="section__title">Контакти</h2>
-        <p class="section__desc">Підтримка доступу та оплати</p>
-      </div>
+<!-- ПРО МЕТОДИКУ -->
+<section class="section" id="about">
+  <div class="container">
+    <h2 class="section__title">Чому моя система працює</h2>
 
-      <div class="contact-card">
-        <div class="contact-row">
-          <div class="contact-k">Email</div>
-          <div class="contact-v">...@gmail.com</div>
-        </div>
-        <div class="contact-row">
-          <div class="contact-k">Telegram</div>
-          <div class="contact-v">@...</div>
-        </div>
-      </div>
-
-      <footer class="footer">
-        <div class="footer__inner">
-          <span class="muted">© <span id="year"></span> Назва</span>
-          <a class="muted" href="#top">Вгору ↑</a>
-        </div>
-      </footer>
+    <div class="tiles-grid">
+      <div class="card">👁 Очі</div>
+      <div class="card">✨ Овал</div>
+      <div class="card">🦢 Шия</div>
+      <div class="card">🧠 Лоб</div>
+      <div class="card">🌿 Гармонія обличчя</div>
     </div>
-  </section>
+
+    <div style="margin-top:40px; line-height:1.8;">
+      • Я створила авторську методику, перевірену на практиці понад 8 років.<br>
+      • Комплекс вправ розрахований на всі зони обличчя: чоло, очі, овал, шия.<br>
+      • Ми тренуємо обличчя та тіло гармонійно – результат довготривалий.<br>
+      • Індивідуальний підхід до кожної учениці.<br>
+      • Без ін'єкцій та операцій – лише природне омолодження.
+    </div>
+  </div>
+</section>
+
+<!-- ДОВІРА -->
+<section class="section section--soft" id="trust">
+  <div class="container">
+    <h2 class="section__title">8 років довіри та результатів</h2>
+
+    <div class="tiles-grid">
+      <div class="card">✔️ Постійні групи та підтримка</div>
+      <div class="card">✔️ Живі офлайн та онлайн тренування</div>
+      <div class="card">✔️ Довгострокові учениці</div>
+      <div class="card">✔️ Безпечна методика</div>
+      <div class="card">✔️ Робота з причинами</div>
+    </div>
+  </div>
+</section>
+
+<!-- ВІДГУКИ -->
+<section class="section" id="reviews">
+  <div class="container">
+    <h2 class="section__title">Що кажуть мої учениці</h2>
+
+    <div class="tiles-grid">
+      <div class="card">«Займаюся 3 роки – обличчя підтягнуте, шкіра світиться!»</div>
+      <div class="card">«Результати видно вже після місяця»</div>
+      <div class="card">«Методика дійсно працює»</div>
+    </div>
+  </div>
+</section>
+
+<!-- БЛОКИ (логика сохранена) -->
+<section class="section" id="blocks">
+  <div class="container">
+    <h2 class="section__title">Програма Face Fitness</h2>
+    <div class="tiles-grid" id="tilesGrid"></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section section--soft">
+  <div class="container" style="text-align:center;">
+    <h2 class="section__title">Почни свою трансформацію сьогодні</h2>
+    <p>Приєднуйтесь до системи Face Fitness та відчуйте різницю вже після перших занять.</p>
+    <a class="btn btn--primary" href="#blocks">Хочу спробувати</a>
+  </div>
+</section>
+
+<!-- CONTACTS -->
+<section class="section" id="contacts">
+  <div class="container">
+    <h2 class="section__title">Контакти</h2>
+    <div class="card">
+      Email: example@gmail.com<br>
+      Telegram: @example
+    </div>
+  </div>
+</section>
+
 </main>
-
-<!-- ===== MODAL: BLOCK BUY/OPEN ===== -->
-<div class="modal-overlay" id="modalOverlay" aria-hidden="true">
-  <div class="modal" role="dialog" aria-modal="true">
-    <button class="modal__close" id="modalClose" type="button">✕</button>
-
-    <div class="modal__image">
-      <img id="modalImg" src="" alt="">
-    </div>
-
-    <div class="modal__content">
-      <div class="modal__title" id="modalTitle">Блок</div>
-      <div class="modal__desc" id="modalDesc">Опис</div>
-
-      <div class="modal__row">
-        <div class="modal__price" id="modalPrice">499 грн</div>
-        <div class="modal__badge" id="modalBadge">Закрито</div>
-      </div>
-
-      <div class="modal__actions">
-        <button class="btn btn--primary" id="modalBuyBtn" type="button">Придбати</button>
-        <a class="btn btn--ghost" id="modalOpenBtn" href="#" style="display:none;">Відкрити блок</a>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ===== LOGIN MODAL ===== -->
-<div class="modal-overlay" id="loginOverlay" aria-hidden="true">
-  <div class="modal modal--one" role="dialog" aria-modal="true">
-    <button class="modal__close" id="loginClose" type="button">✕</button>
-
-    <div class="modal__content">
-      <div class="modal__title">Вхід</div>
-      <div class="modal__desc">Введіть email. На нього прив'язаний доступ до блоків.</div>
-
-      <input id="loginEmail" class="input" type="email" placeholder="example@gmail.com" autocomplete="email">
-
-      <div class="modal__actions">
-        <button class="btn btn--primary" id="loginSubmit" type="button">Продовжити</button>
-        <button class="btn btn--ghost" id="loginCancel" type="button">Скасування</button>
-      </div>
-
-      <div class="muted small">
-        Email використовується лише для доступу до куплених блоків.
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-  document.getElementById('year').textContent = String(new Date().getFullYear());
-
-  // FAQ accordion
-  document.querySelectorAll('.faq__item').forEach(item => {
-    const q = item.querySelector('.faq__q');
-    q.addEventListener('click', () => item.classList.toggle('open'));
-  });
-
-  // Mobile menu
-  const burgerBtn = document.getElementById('burgerBtn');
-  const mobileMenu = document.getElementById('mobileMenu');
-  const overlay = document.getElementById('menuOverlay');
-
-  function openMenu(){ mobileMenu.classList.add('open'); overlay.classList.add('open'); burgerBtn.classList.add('open'); }
-  function closeMenu(){ mobileMenu.classList.remove('open'); overlay.classList.remove('open'); burgerBtn.classList.remove('open'); }
-
-  burgerBtn?.addEventListener('click', () => mobileMenu.classList.contains('open') ? closeMenu() : openMenu());
-  overlay?.addEventListener('click', closeMenu);
-  mobileMenu?.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
-
-  // Gallery zoom
-  const zoomOverlay = document.getElementById('zoomOverlay');
-  const zoomImg = document.getElementById('zoomImg');
-
-  document.querySelectorAll('.gcard').forEach(card => {
-    card.addEventListener('click', () => {
-      const img = card.querySelector('img');
-      if (!img) return;
-
-      if (zoomOverlay.classList.contains('open')) {
-        zoomOverlay.classList.remove('open');
-        zoomOverlay.setAttribute('aria-hidden', 'true');
-        zoomImg.src = '';
-        return;
-      }
-
-      zoomImg.src = img.src;
-      zoomOverlay.classList.add('open');
-      zoomOverlay.setAttribute('aria-hidden', 'false');
-    });
-  });
-
-  zoomOverlay?.addEventListener('click', () => {
-    zoomOverlay.classList.remove('open');
-    zoomOverlay.setAttribute('aria-hidden', 'true');
-    zoomImg.src = '';
-  });
-
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && zoomOverlay.classList.contains('open')) {
-      zoomOverlay.classList.remove('open');
-      zoomOverlay.setAttribute('aria-hidden', 'true');
-      zoomImg.src = '';
-    }
-  });
-</script>
 
 <script src="script.js"></script>
 </body>
