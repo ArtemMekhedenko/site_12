@@ -5,6 +5,27 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Face Fitness від Тетяни</title>
   <link rel="stylesheet" href="style.css">
+
+  <!-- Smooth reveal animations (no need to change style.css) -->
+  <style>
+    .reveal{
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity .6s ease, transform .6s ease;
+      will-change: opacity, transform;
+    }
+    .reveal.is-visible{
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1{ transition-delay: .08s; }
+    .reveal-delay-2{ transition-delay: .16s; }
+    .reveal-delay-3{ transition-delay: .24s; }
+
+    @media (prefers-reduced-motion: reduce){
+      .reveal{ opacity: 1; transform: none; transition: none; }
+    }
+  </style>
 </head>
 <body>
 
@@ -16,10 +37,8 @@
       <a class="nav__link" href="#welcome">Головна</a>
       <a class="nav__link" href="#about">Методика</a>
       <a class="nav__link" href="#trust">Довіра</a>
-      <a class="nav__link" href="#reviews">Відгуки</a>
+      <a class="nav__link" href="#proof">Відгуки та результати</a>
       <a class="nav__link" href="#blocks">Блоки</a>
-      <a class="nav__link" href="#faq">FAQ</a>
-      <a class="nav__link" href="#before-after">Результати</a>
       <a class="nav__link" href="#contacts">Контакти</a>
     </nav>
 
@@ -38,10 +57,8 @@
     <a class="mnav__link" href="#welcome">Головна</a>
     <a class="mnav__link" href="#about">Методика</a>
     <a class="mnav__link" href="#trust">Довіра</a>
-    <a class="mnav__link" href="#reviews">Відгуки</a>
+    <a class="mnav__link" href="#proof">Відгуки та результати</a>
     <a class="mnav__link" href="#blocks">Блоки</a>
-    <a class="mnav__link" href="#faq">FAQ</a>
-    <a class="mnav__link" href="#before-after">Результати</a>
     <a class="mnav__link" href="#contacts">Контакти</a>
   </div>
 </header>
@@ -53,7 +70,7 @@
   <section class="hero" id="welcome">
     <div class="container hero__grid">
 
-      <div class="hero__text">
+      <div class="hero__text reveal is-visible">
         <div class="pill">Face Fitness • Поставка • Природне омолодження</div>
 
         <h1 class="hero__title">
@@ -78,14 +95,14 @@
         </div>
       </div>
 
-      <div class="hero__media">
+      <div class="hero__media reveal reveal-delay-1">
         <div class="card card--video">
           <div class="card__head">
             <div class="card__title">Коротке відео</div>
             <div class="card__hint">приклад заняття</div>
           </div>
           <div class="card__body">
-            <video controls autoplay muted loop style="width:100%; border-radius:16px;">
+            <video controls autoplay muted loop playsinline style="width:100%; border-radius:16px;">
               <source src="https://res.cloudinary.com/dylsoxbbo/video/upload/v1771509627/skinblocks/block-9-lesson-1.mp4" type="video/mp4">
             </video>
           </div>
@@ -96,7 +113,7 @@
   </section>
 
   <!-- ABOUT / METHOD -->
-  <section class="section" id="about">
+  <section class="section reveal" id="about">
     <div class="container">
       <div class="section__head">
         <h2 class="section__title">Чому моя система працює</h2>
@@ -104,35 +121,35 @@
       </div>
 
       <div class="tiles-grid">
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-1" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">👁 Очі</div>
             <div class="tile__subtitle">Зняття напруги та свіжий погляд</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-2" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">✨ Овал</div>
             <div class="tile__subtitle">Чіткіший контур і тонус мʼязів</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-3" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">🦢 Шия</div>
             <div class="tile__subtitle">Постава, шия та зона декольте</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-1" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">🧠 Лоб</div>
             <div class="tile__subtitle">Мʼяке розслаблення та контроль міміки</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-2" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">🌿 Гармонія</div>
             <div class="tile__subtitle">Обличчя + тіло = довготривалий результат</div>
@@ -140,7 +157,7 @@
         </div>
       </div>
 
-      <div class="note">
+      <div class="note reveal reveal-delay-1">
         <div class="note__title">Про методику</div>
         <div class="note__text">
           • Я створила авторську методику, перевірену на практиці понад 8 років.<br>
@@ -154,7 +171,7 @@
   </section>
 
   <!-- TRUST -->
-  <section class="section section--soft" id="trust">
+  <section class="section section--soft reveal" id="trust">
     <div class="container">
       <div class="section__head">
         <h2 class="section__title">8 років довіри та результатів</h2>
@@ -162,35 +179,35 @@
       </div>
 
       <div class="tiles-grid">
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-1" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">✔️ Постійні групи та підтримка</div>
             <div class="tile__subtitle">Не залишаю вас наодинці з питаннями</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-2" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">✔️ Офлайн + онлайн</div>
             <div class="tile__subtitle">Живі тренування та підтримка в онлайні</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-3" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">✔️ Довгострокові учениці</div>
             <div class="tile__subtitle">Результат, який помітно з часом</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-1" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">✔️ Безпечно для різного віку</div>
             <div class="tile__subtitle">Мʼяко, акуратно і з користю</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-2" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">✔️ Робота з причинами</div>
             <div class="tile__subtitle">Не маскуємо, а змінюємо основу</div>
@@ -200,41 +217,58 @@
     </div>
   </section>
 
-  <!-- REVIEWS -->
-  <section class="section" id="reviews">
+  <!-- REVIEWS + RESULTS (combined) -->
+  <section class="section reveal" id="proof">
     <div class="container">
       <div class="section__head">
-        <h2 class="section__title">Що кажуть мої учениці</h2>
-        <p class="section__desc">Реальні відгуки</p>
+        <h2 class="section__title">Відгуки та результати</h2>
+        <p class="section__desc">Реальні слова та реальні зміни</p>
       </div>
 
+      <!-- Reviews -->
       <div class="tiles-grid">
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-1" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">⭐⭐⭐⭐⭐</div>
             <div class="tile__subtitle">«Займаюся 3 роки – обличчя підтягнуте, шкіра світиться, зморшки розгладилися!»</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-2" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">⭐⭐⭐⭐⭐</div>
             <div class="tile__subtitle">«Результати видно вже після місяця, а підтримую їх із Танюшею 2 роки»</div>
           </div>
         </div>
 
-        <div class="tile" style="cursor:default;">
+        <div class="tile reveal reveal-delay-3" style="cursor:default;">
           <div class="tile__content">
             <div class="tile__title">⭐⭐⭐⭐⭐</div>
             <div class="tile__subtitle">«Методика дійсно працює, і це найкращий спосіб без уколів»</div>
           </div>
         </div>
       </div>
+
+      <!-- Results gallery -->
+      <div style="height:18px;"></div>
+      <div class="gallery" id="resultsGallery">
+        <button class="gcard reveal reveal-delay-1" type="button"><img src="img/before1.jpg" alt="Фото 1"></button>
+        <button class="gcard reveal reveal-delay-2" type="button"><img src="img/after1.jpg" alt="Фото 2"></button>
+        <button class="gcard reveal reveal-delay-3" type="button"><img src="img/before2.jpg" alt="Фото 3"></button>
+        <button class="gcard reveal reveal-delay-1" type="button"><img src="img/after2.jpg" alt="Фото 4"></button>
+      </div>
     </div>
   </section>
 
+  <!-- Zoom overlay -->
+  <div class="zoom-overlay" id="zoomOverlay" aria-hidden="true">
+    <div class="zoom-inner">
+      <img id="zoomImg" src="" alt="">
+    </div>
+  </div>
+
   <!-- CTA -->
-  <section class="section section--soft" id="join">
+  <section class="section section--soft reveal" id="join">
     <div class="container">
       <div class="note" style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
         <div>
@@ -250,77 +284,20 @@
   </section>
 
   <!-- BLOCKS -->
-  <section class="section" id="blocks">
+  <section class="section reveal" id="blocks">
     <div class="container">
       <div class="section__head">
         <h2 class="section__title">Програма Face Fitness</h2>
         <p class="section__desc">Оберіть блок та відкрийте доступ</p>
       </div>
 
-      <!-- ВАЖНО: контейнер для карточек (script.js) -->
+      <!-- IMPORTANT: script.js renders cards here -->
       <div class="tiles-grid" id="tilesGrid"></div>
     </div>
   </section>
 
-  <!-- FAQ -->
-  <section class="section section--soft" id="faq">
-    <div class="container">
-      <div class="section__head">
-        <h2 class="section__title">FAQ</h2>
-        <p class="section__desc">Коротко та по справі</p>
-      </div>
-
-      <div class="faq">
-        <div class="faq__item">
-          <button class="faq__q" type="button">Скільки часу потрібно, щоб побачити результат?</button>
-          <div class="faq__a">
-            Перші відчутні зміни зазвичай помітні вже через 2–4 тижні регулярних занять.
-          </div>
-        </div>
-
-        <div class="faq__item">
-          <button class="faq__q" type="button">Чи підходить методика для різного віку?</button>
-          <div class="faq__a">
-            Так. Вправи підбираються під ваш рівень та цілі. Методика мʼяка та безпечна.
-          </div>
-        </div>
-
-        <div class="faq__item">
-          <button class="faq__q" type="button">Як отримати доступ після покупки?</button>
-          <div class="faq__a">
-            Доступ привʼязаний до email. Після оплати блок відкривається та залишається доступним.
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- RESULTS -->
-  <section class="section" id="before-after">
-    <div class="container">
-      <div class="section__head">
-        <h2 class="section__title">Результати</h2>
-        <p class="section__desc">До / Після</p>
-      </div>
-
-      <div class="gallery" id="resultsGallery">
-        <button class="gcard" type="button"><img src="img/before1.jpg" alt="Фото 1"></button>
-        <button class="gcard" type="button"><img src="img/after1.jpg" alt="Фото 2"></button>
-        <button class="gcard" type="button"><img src="img/before2.jpg" alt="Фото 3"></button>
-        <button class="gcard" type="button"><img src="img/after2.jpg" alt="Фото 4"></button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Zoom overlay -->
-  <div class="zoom-overlay" id="zoomOverlay" aria-hidden="true">
-    <div class="zoom-inner">
-      <img id="zoomImg" src="" alt="">
-    </div>
-  </div>
-
   <!-- CONTACTS -->
-  <section class="section section--soft" id="contacts">
+  <section class="section section--soft reveal" id="contacts">
     <div class="container">
       <div class="section__head">
         <h2 class="section__title">Контакти</h2>
@@ -398,13 +375,9 @@
 </div>
 
 <script>
-  document.getElementById('year').textContent = String(new Date().getFullYear());
-
-  // FAQ accordion
-  document.querySelectorAll('.faq__item').forEach(item => {
-    const q = item.querySelector('.faq__q');
-    q.addEventListener('click', () => item.classList.toggle('open'));
-  });
+  // year
+  const yearEl = document.getElementById('year');
+  if (yearEl) yearEl.textContent = String(new Date().getFullYear());
 
   // Mobile menu
   const burgerBtn = document.getElementById('burgerBtn');
@@ -453,6 +426,26 @@
       zoomImg.src = '';
     }
   });
+
+  // Smooth reveal on scroll
+  const revealEls = Array.from(document.querySelectorAll('.reveal'));
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+
+    revealEls.forEach(el => {
+      if (!el.classList.contains('is-visible')) io.observe(el);
+    });
+  } else {
+    // fallback
+    revealEls.forEach(el => el.classList.add('is-visible'));
+  }
 </script>
 
 <script src="script.js"></script>
