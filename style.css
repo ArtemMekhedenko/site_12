@@ -614,8 +614,11 @@ a{ color: inherit; }
   font-size: 13px;
 }
 
-.video-shell{
-  padding: 14px 16px 16px;
+.video-shell video {
+  max-height: 600px;   /* попробуй 500px / 550px */
+  width: auto;
+  margin: 0 auto;
+  display: block;
 }
 
 .video-card__video{
