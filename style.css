@@ -612,3 +612,164 @@ a{ color: inherit; }
   display:block;
   background: #000;
 }
+/* =========================
+   LESSONS / BLOCK PAGE FIX
+   (restores layout + beauty)
+========================= */
+
+/* общий контейнер страницы блока */
+.block-page, .lessons-page, .block-wrap, .page-block{
+  width:min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 22px 0 44px;
+}
+
+/* верхняя панель навигации уроков */
+.lesson-nav, .block-nav, .lessons-nav{
+  display:flex;
+  gap: 12px;
+  align-items:center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.lesson-nav .btn, .block-nav .btn, .lessons-nav .btn{
+  border-radius: 999px;
+}
+
+/* сетка: список уроков + видео */
+.lesson-layout, .block-layout, .lessons-layout{
+  display:grid;
+  grid-template-columns: 360px 1fr;
+  gap: 18px;
+  align-items:start;
+}
+
+@media (max-width: 980px){
+  .lesson-layout, .block-layout, .lessons-layout{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* левая колонка */
+.lesson-sidebar, .block-sidebar, .lessons-sidebar{
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  border-radius: 22px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.40);
+  padding: 16px;
+}
+
+/* заголовок */
+.lesson-sidebar h2, .block-sidebar h2, .lessons-sidebar h2,
+.lesson-sidebar h3, .block-sidebar h3, .lessons-sidebar h3{
+  margin: 0 0 10px;
+  font-weight: 980;
+  letter-spacing: -0.2px;
+}
+
+/* прогресс */
+.progress-wrap, .lesson-progress, .block-progress{
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  color: rgba(231,239,233,0.86);
+}
+
+.progress-bar{
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(217,199,170,0.14);
+  overflow:hidden;
+  margin-top: 8px;
+  border: 1px solid rgba(217,199,170,0.18);
+}
+.progress-bar > span{
+  display:block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent3));
+  border-radius: 999px;
+}
+
+/* список уроков */
+.lessons-list, .lesson-list, .block-lessons{
+  display:flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* один урок */
+.lesson-item, .lesson, .lesson-btn{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease, filter .16s ease;
+  color: rgba(231,239,233,0.92);
+  text-decoration: none;
+}
+
+.lesson-item:hover, .lesson:hover, .lesson-btn:hover{
+  transform: translateY(-2px);
+  border-color: rgba(143,227,194,0.35);
+  background: rgba(143,227,194,0.08);
+  filter: brightness(1.03);
+}
+
+/* активный урок */
+.lesson-item.active, .lesson.active, .lesson-btn.active,
+.lesson-item[aria-current="true"]{
+  border-color: rgba(143,227,194,0.55);
+  background: rgba(143,227,194,0.14);
+}
+
+/* бейдж "сейчас" */
+.lesson-badge, .now-badge{
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(143,227,194,0.35);
+  background: rgba(143,227,194,0.14);
+  color: #eafff7;
+  font-weight: 900;
+}
+
+/* правая колонка (видео/контент) */
+.lesson-main, .block-main, .lessons-main{
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  border-radius: 22px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.40);
+  padding: 16px;
+  overflow:hidden;
+}
+
+/* видео контейнер */
+.video-wrap, .lesson-video, .block-video{
+  border-radius: 18px;
+  border: 1px solid rgba(217,199,170,0.18);
+  background: rgba(0,0,0,0.25);
+  overflow:hidden;
+}
+
+.video-wrap video, .lesson-video video, .block-video video,
+video{
+  width: 100%;
+  display:block;
+}
+
+/* подписи */
+.lesson-hint, .block-hint{
+  margin-top: 10px;
+  color: rgba(231,239,233,0.70);
+}
