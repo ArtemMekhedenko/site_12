@@ -236,7 +236,7 @@ app.post('/api/payment/create', async (req, res) => {
 
   try {
     await pool.query(
-      `INSERT INTO orders(order_ref, email, product_id, amount, currency, payment_status)
+      `INSERT INTO orders(order_ref, email, block_id, amount, currency, payment_status)
        VALUES($1,$2,$3,$4,$5,'pending')`,
       [orderRef, email, productId, amount, currency]
     );
@@ -314,18 +314,18 @@ app.post('/api/pay/wayforpay/webhook', async (req, res) => {
         `UPDATE orders
          SET payment_status='paid', paid_at=NOW()
          WHERE order_ref=$1
-         RETURNING email, product_id`,
+         RETURNING email, block_id`,
         [orderRef]
       );
 
       // 2) открыть доступ (записать покупку)
       if (o.rows.length) {
-        const { email, product_id } = o.rows[0];
+        const { email, block_id } = o.rows[0];
         await pool.query(
           `INSERT INTO purchases(email, block_id)
            VALUES($1,$2)
            ON CONFLICT (email, block_id) DO NOTHING`,
-          [email, product_id]
+          [email, block_id]
         );
       }
     } else if (status) {
@@ -350,7 +350,7 @@ app.get('/api/order', async (req, res) => {
 
   try {
     const r = await pool.query(
-      `SELECT order_ref, email, product_id, amount, currency, payment_status
+      `SELECT order_ref, email, block_id, amount, currency, payment_status
        FROM orders
        WHERE order_ref=$1
        LIMIT 1`,
@@ -365,7 +365,7 @@ app.get('/api/order', async (req, res) => {
       order: {
         orderRef: o.order_ref,
         email: o.email,
-        productId: o.product_id,
+        productId: o.block_id,
         amount: o.amount,
         currency: o.currency,
         paymentStatus: o.payment_status
