@@ -122,6 +122,22 @@ async function initDb() {
   console.log('✅ DB initialized');
 
   await seedLessonsIfMissing();
+
+  await pool.query(`
+  CREATE TABLE IF NOT EXISTS orders (
+    order_ref TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    amount NUMERIC(10,2) NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'UAH',
+    payment_status TEXT NOT NULL DEFAULT 'pending', -- pending | paid | failed
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    paid_at TIMESTAMPTZ
+  );
+`);
+
+await pool.query(`CREATE INDEX IF NOT EXISTS orders_email_idx ON orders(email);`);
+await pool.query(`CREATE INDEX IF NOT EXISTS orders_product_idx ON orders(product_id);`);
 }
 
 async function seedLessonsIfMissing() {
@@ -209,6 +225,7 @@ app.post('/api/payment/create', async (req, res) => {
     }
   }
 
+
   // ---- REAL PAYMENT (WayForPay) ----
   const amount = Number(req.body.amount || 0) || 499; // fallback price
   const currency = WFP_CURRENCY;
@@ -279,6 +296,85 @@ app.post('/api/payment/create', async (req, res) => {
     fields,
     orderRef
   });
+});
+
+app.post('/api/pay/wayforpay/webhook', async (req, res) => {
+  try {
+    const payload = req.body;
+
+    const orderRef = payload?.orderReference;
+    const status = payload?.transactionStatus;
+
+    if (!orderRef) return res.json({ status: 'error', message: 'No orderReference' });
+
+    // WayForPay обычно присылает Approved на успешную оплату
+    if (status === 'Approved') {
+      // 1) пометить заказ paid
+      const o = await pool.query(
+        `UPDATE orders
+         SET payment_status='paid', paid_at=NOW()
+         WHERE order_ref=$1
+         RETURNING email, product_id`,
+        [orderRef]
+      );
+
+      // 2) открыть доступ (записать покупку)
+      if (o.rows.length) {
+        const { email, product_id } = o.rows[0];
+        await pool.query(
+          `INSERT INTO purchases(email, block_id)
+           VALUES($1,$2)
+           ON CONFLICT (email, block_id) DO NOTHING`,
+          [email, product_id]
+        );
+      }
+    } else if (status) {
+      // если не approved — пометим failed (или оставь pending)
+      await pool.query(
+        `UPDATE orders SET payment_status='failed' WHERE order_ref=$1`,
+        [orderRef]
+      );
+    }
+
+    // ответ WayForPay
+    return res.json({ orderReference: orderRef, status: 'accept', time: Math.floor(Date.now()/1000) });
+  } catch (e) {
+    console.error('WFP webhook error', e);
+    return res.status(500).json({ status: 'error' });
+  }
+});
+
+app.get('/api/order', async (req, res) => {
+  const orderRef = String(req.query.orderRef || '').trim();
+  if (!orderRef) return res.json({ status: 'error', message: 'Missing orderRef' });
+
+  try {
+    const r = await pool.query(
+      `SELECT order_ref, email, product_id, amount, currency, payment_status
+       FROM orders
+       WHERE order_ref=$1
+       LIMIT 1`,
+      [orderRef]
+    );
+
+    if (!r.rows.length) return res.json({ status: 'error', message: 'Order not found' });
+
+    const o = r.rows[0];
+    return res.json({
+      status: 'ok',
+      order: {
+        orderRef: o.order_ref,
+        email: o.email,
+        productId: o.product_id,
+        amount: o.amount,
+        currency: o.currency,
+        paymentStatus: o.payment_status
+      }
+    });
+  } catch (e) {
+    console.error(e);
+    return res.json({ status: 'error', message: 'DB error' });
+  }
 });
 
 /* ================================
