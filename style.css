@@ -622,12 +622,13 @@ a{ color: inherit; }
 }
 
 .video-card__video{
-  width:100%;
-  min-height: 340px;
+  width: 100%;
+  max-width: 380px;   /* ширина видео */
+  height: auto;
+  display: block;
+  margin: 0 auto;
   border-radius: 18px;
-  background:#000;
-  border: 1px solid rgba(255,255,255,0.10);
-  display:block;
+  object-fit: contain;
 }
 
 .video-locked{
