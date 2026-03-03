@@ -62,6 +62,9 @@ const upload = multer({
    INIT DB + SEED
 ================================ */
 async function initDb() {
+
+  await pool.query(`DROP TABLE IF EXISTS orders;`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS purchases (
       id SERIAL PRIMARY KEY,
