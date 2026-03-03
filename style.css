@@ -622,11 +622,8 @@ a{ color: inherit; }
 }
 
 .video-card__video{
-  width: 100%;
-  max-width: 180px;   /* меньше по ширине */
-  height: 300px;      /* меньше по высоте (под вертикальное видео) */
-  object-fit: cover;  /* чтобы красиво заполняло */
-  margin: 0 auto;     /* по центру */
+  width:100%;
+  min-height: 340px;
   border-radius: 18px;
   background:#000;
   border: 1px solid rgba(255,255,255,0.10);
